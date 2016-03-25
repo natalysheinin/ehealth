@@ -31,7 +31,6 @@ feature {NONE} -- Initialization
                                 -- initial size of patient hash talbe is 0
                         create {SORTED_TWO_WAY_LIST[PATIENT]} patient_set.make
                         create {SORTED_TWO_WAY_LIST[MEDICATION]} medicine_set.make
-                        create {SORTED_TWO_WAY_LIST[PHYSICIAN]} physician_set.make
 --                        create {SORTED_TWO_WAY_LIST[PHYSICIAN]} physician_set.make
                         set_report("ok")
                 end
@@ -134,13 +133,19 @@ feature --command
 
 				--add new physician to the database
 		add_physician(a_id: INTEGER_64; a_name: STRING; a_kind: INTEGER_64)
+		require
+                int_64_invalid:
+                        is_id_overflow(a_id)
+                id_unique_invalid:
+                        is_id_unique(a_id)
+                name_begins_letter:
+                        name_valid(a_name)
 
 		local
 				new_physician : PHYSICIAN
 		do
 				create new_physician.make (a_id, a_name, a_kind)
 				physician_set.extend (new_physician)
-		--		physician_set.forth
 
 
 		end

@@ -8,7 +8,9 @@ class
 	PHYSICIAN
 
 inherit
-	ANY
+	 COMPARABLE
+                redefine is_equal, is_less, out
+                end
 
 create
 	make
@@ -16,44 +18,49 @@ create
 feature{NONE} -- Creation
 
         make(a_id:INTEGER_64; a_name:STRING; a_type: INTEGER_64)
-                        -- Create a customer with an `account'
---                local
---                        the_id: INTEGER_64
---                        the_name: STRING
---                        the_type: INTEGER_64
                 do
-
                       	 id := a_id
                        	name := a_name
                        	type := a_type
---                       	create the_type.make_type(a_type)
 
                 end
 
-feature -- queries
+feature -- physician attributes
 
 	id : INTEGER_64
 	name : STRING
 	type : INTEGER_64
 
---        name: IMMUTABLE_STRING_8
+feature --redefine COMPARABLE methods
+        is_equal (other: like Current): BOOLEAN
+                        -- Is `other' value equal to current
+                do
+                        Result := id = other.id
+                ensure then
+                        Result = (id = other.id)
+                end
 
---        balance: VALUE
---                do
---                        Result := account.balance
---                end
+        is_less alias "<" (other: like Current): BOOLEAN
+                        -- Is current object less than `other'?
+                do
+                        if id < other.id then
+                                Result := true
+                        else
+                                Result := false
+                        end
+                ensure then
+                        Result = (id < other.id)
+                end
 
---        account: ACCOUNT
+feature --model methods
 
---        out : STRING
---                        -- Return a sorted list of customers.
---                do
---                        Result := "name: " + account.name + ", balance: " + account.balance.out
---                end
+        out : STRING
+        local
+                temp : STRING
+        do
+                temp := "[" + physician.name + "," + physician.kind + "]"
 
-
---invariant
---        name_consistency: name ~ account.name
---        balance_consistency: balance = account.balance
+                Result := temp
+        end
 
 end
