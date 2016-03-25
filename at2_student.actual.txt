@@ -1,0 +1,30 @@
+  0: ok
+  Physicians:
+  Patients: 
+  Medications:
+  Interactions:
+  Prescriptions:
+->add_patient(1,"Dora")
+  1: ok
+  Physicians:
+  Patients: 
+    1->Dora
+  Medications:
+  Interactions:
+  Prescriptions:
+->add_patient(0,"Dora")
+  2: patient id must be a positive integer
+  Physicians:
+  Patients: 
+    1->Dora
+  Medications:
+  Interactions:
+  Prescriptions:
+->add_patient(-1,"Dora")
+  3: patient id must be a positive integer
+  Physicians:
+  Patients: 
+    1->Dora
+  Medications:
+  Interactions:
+  Prescriptions:

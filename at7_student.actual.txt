@@ -1,0 +1,149 @@
+  0: ok
+  Physicians:
+  Patients: 
+  Medications: 
+  Interactions: 
+  Prescriptions:
+->add_medication(1,["Wafarin", pill, 1, 6])
+  1: ok
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+  Interactions: 
+  Prescriptions:
+->add_medication(2,["Sulfamethizole", pill, 200, 500])
+  2: ok
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+  Interactions: 
+  Prescriptions:
+->add_medication(4,["m4", liquid, 2.5, 9.5])
+  3: ok
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+    4->[m4,lq,2.50,9.50]
+  Interactions: 
+  Prescriptions:
+->add_medication(1,["Wafarin", pill, 1, 6])
+  4: medication id already in use
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+    4->[m4,lq,2.50,9.50]
+  Interactions: 
+  Prescriptions:
+->add_medication(2,["Sulfamethizole", pill, 200, 500])
+  5: medication id already in use
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+    4->[m4,lq,2.50,9.50]
+  Interactions: 
+  Prescriptions:
+->add_medication(4,["m4", liquid, 2.5, 9.5])
+  6: medication id already in use
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+    4->[m4,lq,2.50,9.50]
+  Interactions: 
+  Prescriptions:
+->add_medication(-5,["1n1", pill, -1, -6])
+  7: medication id must be a positive integer
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+    4->[m4,lq,2.50,9.50]
+  Interactions: 
+  Prescriptions:
+->add_medication(5,["1n1", pill, -1, -6])
+  8: medication name must start with a letter
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+    4->[m4,lq,2.50,9.50]
+  Interactions: 
+  Prescriptions:
+->add_medication(-5,["n1", pill, -1, -6])
+  9: medication id must be a positive integer
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+    4->[m4,lq,2.50,9.50]
+  Interactions: 
+  Prescriptions:
+->add_medication(-5,["1n1", pill, 1, -6])
+  10: medication id must be a positive integer
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+    4->[m4,lq,2.50,9.50]
+  Interactions: 
+  Prescriptions:
+->add_medication(-5,["1n1", pill, -1, 6])
+  11: medication id must be a positive integer
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+    4->[m4,lq,2.50,9.50]
+  Interactions: 
+  Prescriptions:
+->add_medication(5,["n1", pill, 1, 6])
+  12: ok
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+    4->[m4,lq,2.50,9.50]
+    5->[n1,pl,1.00,6.00]
+  Interactions: 
+  Prescriptions:
+->add_medication(6,["n2", pill, 200, 500])
+  13: ok
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+    4->[m4,lq,2.50,9.50]
+    5->[n1,pl,1.00,6.00]
+    6->[n2,pl,200.00,500.00]
+  Interactions: 
+  Prescriptions:
+->add_medication(7,["n3 asd", liquid, 2.5, 9.5])
+  14: ok
+  Physicians:
+  Patients: 
+  Medications: 
+    1->[Wafarin,pl,1.00,6.00]
+    2->[Sulfamethizole,pl,200.00,500.00]
+    4->[m4,lq,2.50,9.50]
+    5->[n1,pl,1.00,6.00]
+    6->[n2,pl,200.00,500.00]
+    7->[n3 asd,lq,2.50,9.50]
+  Interactions: 
+  Prescriptions:

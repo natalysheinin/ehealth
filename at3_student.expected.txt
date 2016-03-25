@@ -1,0 +1,89 @@
+  0: ok
+  Physicians:
+  Patients: 
+  Medications: 
+  Interactions: 
+  Prescriptions:
+->add_patient(1,"Dora")
+  1: ok
+  Physicians:
+  Patients: 
+    1->Dora
+  Medications: 
+  Interactions: 
+  Prescriptions:
+->add_patient(2,"123")
+  2: name must start with a letter
+  Physicians:
+  Patients: 
+    1->Dora
+  Medications: 
+  Interactions: 
+  Prescriptions:
+->add_patient(3,"")
+  3: name must start with a letter
+  Physicians:
+  Patients: 
+    1->Dora
+  Medications: 
+  Interactions: 
+  Prescriptions:
+->add_patient(4," ")
+  4: name must start with a letter
+  Physicians:
+  Patients: 
+    1->Dora
+  Medications: 
+  Interactions: 
+  Prescriptions:
+->add_patient(5,"Dr. Mike")
+  5: ok
+  Physicians:
+  Patients: 
+    1->Dora
+    5->Dr. Mike
+  Medications: 
+  Interactions: 
+  Prescriptions:
+->add_patient(6,"   mike")
+  6: name must start with a letter
+  Physicians:
+  Patients: 
+    1->Dora
+    5->Dr. Mike
+  Medications: 
+  Interactions: 
+  Prescriptions:
+->add_patient(7,"Dora  ")
+  7: ok
+  Physicians:
+  Patients: 
+    1->Dora
+    5->Dr. Mike
+    7->Dora  
+  Medications: 
+  Interactions: 
+  Prescriptions:
+->add_patient(8,"MIKE!!!!")
+  8: ok
+  Physicians:
+  Patients: 
+    1->Dora
+    5->Dr. Mike
+    7->Dora  
+    8->MIKE!!!!
+  Medications: 
+  Interactions: 
+  Prescriptions:
+->add_patient(9,"Mr Michael Long Name Brother bro what")
+  9: ok
+  Physicians:
+  Patients: 
+    1->Dora
+    5->Dr. Mike
+    7->Dora  
+    8->MIKE!!!!
+    9->Mr Michael Long Name Brother bro what
+  Medications: 
+  Interactions: 
+  Prescriptions:
