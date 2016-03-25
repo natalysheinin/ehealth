@@ -1,6 +1,6 @@
 note
 	description: "Summary description for {PHYSICIAN}."
-	author: ""
+	author: "Nataly"
 	date: "$Date$"
 	revision: "$Revision$"
 
@@ -8,27 +8,33 @@ class
 	PHYSICIAN
 
 inherit
---	PHYSICIANTYPE
+	ANY
 
 create
-	make_physician
+	make
 
 feature{NONE} -- Creation
 
-        make_physician(a_id:INTEGER; a_name:STRING; a_type: PHYSICIANTYPE)
+        make(a_id:INTEGER_64; a_name:STRING; a_type: INTEGER_64)
                         -- Create a customer with an `account'
-                local
-                        the_id: INTEGER
-                        the_name: STRING
-                        the_type: PHYSICIANTYPE
+--                local
+--                        the_id: INTEGER_64
+--                        the_name: STRING
+--                        the_type: INTEGER_64
                 do
-                       	the_id := a_id
-                       	the_name := a_name
-                       	create the_type.make_type(a_type)
+
+                      	 id := a_id
+                       	name := a_name
+                       	type := a_type
+--                       	create the_type.make_type(a_type)
 
                 end
 
 feature -- queries
+
+	id : INTEGER_64
+	name : STRING
+	type : INTEGER_64
 
 --        name: IMMUTABLE_STRING_8
 
