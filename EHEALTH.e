@@ -31,7 +31,9 @@ feature {NONE} -- Initialization
                                 -- initial size of patient hash talbe is 0
                         create {SORTED_TWO_WAY_LIST[PATIENT]} patient_set.make
                         create {SORTED_TWO_WAY_LIST[MEDICATION]} medicine_set.make
---                        create {SORTED_TWO_WAY_LIST[PHYSICIAN]} physician_set.make
+                        create {SORTED_TWO_WAY_LIST[PHYSICIAN]} physician_set.make
+--                        create {SORTED_TWO_WAY_LIST[PERSCRIPTION]} perscriptions.make
+						create {SORTED_TWO_WAY_LIST[INTERACTION]} interactions.make
                         set_report("ok")
                 end
 
@@ -43,6 +45,8 @@ feature -- model attributes
         patient_set : LIST[PATIENT]
         medicine_set : LIST[MEDICATION]
         physician_set : LIST[PHYSICIAN]
+
+        interactions: LIST[INTERACTION]
 
 feature -- model operations
         default_update
@@ -99,6 +103,31 @@ feature {ETF_COMMAND} -- reports
                 Result := "medication id must be a positive integer"
         end
 
+		phys_id_nonpositive: STRING
+        attribute
+                Result := "physician id must be a positive integer"
+        end
+
+        phys_name_invalid: STRING
+        attribute
+                Result := "physician name must start with a letter"
+        end
+
+        phys_id_used: STRING
+        attribute
+                Result := "physician id already in use"
+        end
+
+        phys_name_nonunique: STRING
+        attribute
+                Result := "physician name already in use"
+        end
+
+        interaction_not_unique: STRING
+        attribute
+        		Result := "interaction already exists"
+        end
+
 feature -- set report
         set_report (nr: STRING)
         do
@@ -137,7 +166,7 @@ feature --command
                 int_64_invalid:
                         is_id_overflow(a_id)
                 id_unique_invalid:
-                        is_id_unique(a_id)
+                        phys_is_id_unique(a_id)
                 name_begins_letter:
                         name_valid(a_name)
 
@@ -146,7 +175,11 @@ feature --command
 		do
 				create new_physician.make (a_id, a_name, a_kind)
 				physician_set.extend (new_physician)
+				set_report("ok")
 
+		ensure
+				number_of_phys_increased:
+                        physician_set.count = old physician_set.count + 1
 
 		end
                 -- add new medication to the database
@@ -175,7 +208,65 @@ feature --command
                         pd_unchanged_other_than(id, medicine.name, old medicine_set.deep_twin)
         end
 
+        add_interaction(a_id: INTEGER_64; b_id: INTEGER_64)
+        require
+        	both_medicines_exist:
+        			true
+        	check_interaction_exists:
+        			not interaction_exists
+
+        local
+        	new_interaction : INTERACTION
+
+        do
+        	create new_interaction.make (a_id, b_id)
+        	interactions.extend (new_interaction)
+        	set_report("ok")
+
+         ensure
+                number_of_interactions_increased:
+                        interactions.count = old interactions.count + 1
+        end
+
 feature --util
+
+
+                -- is id greater than or less than limits
+        is_id_overflow(id: INTEGER_64): BOOLEAN
+        do
+                if (id > 9223372036854775807 or id < 1) then
+                        Result := false
+                else
+                        Result := true
+                end
+        ensure
+                Result = (id <= 9223372036854775807 and id >= 1)
+        end
+
+
+
+                -- is this name a valid name (does it start with a letter)
+        name_valid(name: STRING): BOOLEAN
+        do
+                if name.count > 0 then
+                        Result := name.at (1).is_alpha
+                else
+                        Result := false
+                end
+        end
+
+
+
+
+
+		--------------------------------------------------------------------------------INTERACTION HELPERS
+		interaction_exists: BOOLEAN
+		do
+			Result := false
+		end
+        ----------------------------------------------------------------------------INTERACTION HELPERS END
+
+        ---------------------------------------------------------------------------------MEDICATION HELPERS
                 -- check if medication already exists in the database
         md_exists(a_id: INTEGER_64; name: STRING; kind: INTEGER_64; low: VALUE; hi: VALUE): BOOLEAN
         do
@@ -213,27 +304,7 @@ feature --util
                 end
         end
 
-                --Is the tructure sorted?
-        patient_is_sorted: BOOLEAN
-        local
-                temp_patient : PATIENT
-
-		  do
-                from
-                        patient_set.start
-                        Result := true
-                until
-                        patient_set.after or not Result
-                loop
-                        temp_patient := patient_set.item
-                        patient_set.forth
-                        if (not patient_set.after) then
-                                Result := temp_patient.id <= patient_set.item.id
-                        end
-                end
-        end
-
-                --Is the tructure sorted?
+                   --Is the structure sorted?
         medicine_is_sorted: BOOLEAN
         local
                 temp_medication : MEDICATION
@@ -251,52 +322,6 @@ feature --util
                         end
                 end
         end
-
-                -- check if patient with this id and name exists in the database
-        pt_exists(id: INTEGER_64; name: STRING): BOOLEAN
-        do
-                from
-                        patient_set.start
-                        Result := false
-                until
-                        Result or patient_set.after
-                loop
-                        if (patient_set.item.id = id) and (patient_set.item.name ~ name) then
-                                Result := true
-                        end
-                        patient_set.forth
-                end
-
-        end
-
-                -- is id greater than or less than limits
-        is_id_overflow(id: INTEGER_64): BOOLEAN
-        do
-                if (id > 9223372036854775807 or id < 1) then
-                        Result := false
-                else
-                        Result := true
-                end
-        ensure
-                Result = (id <= 9223372036854775807 and id >= 1)
-        end
-
-                -- is the new id unique
-        is_id_unique(id: INTEGER_64): BOOLEAN
-        do
-                from
-                        patient_set.start
-                        Result := true
-                until
-                        patient_set.after or not (Result)
-                loop
-                        if patient_set.item.id = id then
-                                Result := false
-                        end
-                        patient_set.forth
-                end
-        end
-
                 -- is the new id unique
         md_is_id_unique(id: INTEGER_64): BOOLEAN
         do
@@ -313,32 +338,7 @@ feature --util
                 end
         end
 
-                -- are patients other than `id' unchanged?
-        pt_unchanged_other_than(id: INTEGER_64; old_patient_set: like patient_set): BOOLEAN
-        do
-                old_patient_set.compare_objects
-                from
-                        Result := true
-                        patient_set.start
-                until
-                        patient_set.after or not Result
-                loop
-                        if patient_set.item.id /= id then
-                                Result := Result and then
-                                        old_patient_set.has (patient_set.item)
-                        end
-                        patient_set.forth
-                end
-        ensure
-                Result =
-                        across
-                                patient_set as p all
-                                        p.item.id /= id IMPLIES
-                                                old_patient_set.has (p.item)
-                                end
-        end
-
-                -- are medications other than `id' and `name' unchanged?
+                 -- are medications other than `id' and `name' unchanged?
         pd_unchanged_other_than(id: INTEGER_64; name: STRING; old_medicine_set: like medicine_set): BOOLEAN
         do
                 old_medicine_set.compare_objects
@@ -363,44 +363,6 @@ feature --util
                                         m.item.id /= id and m.item.medicine.name /~ name IMPLIES
                                                 old_medicine_set.has (m.item)
                                 end
-        end
-
-                -- is this name a valid name (does it start with a letter)
-        name_valid(name: STRING): BOOLEAN
-        do
-                if name.count > 0 then
-                        Result := name.at (1).is_alpha
-                else
-                        Result := false
-                end
-        end
-
-                -- check if all patient ids in the database are unique
-        pt_ids_is_unique: BOOLEAN
-        local
-                temp_id : INTEGER_64
-        do
-                from
-                        patient_set.start
-                        Result := true
-                until
-                        patient_set.after or not (Result)
-                loop
-                        temp_id := patient_set.item.id
-                        from
-                                patient_set.start
-                        until
-                                patient_set.after
-                        loop
-                                patient_set.forth
-                                if not patient_set.after then
-                                        if temp_id = patient_set.item.id then
-                                                Result := false
-                                        end
-                                end
-                        end
-                        patient_set.forth
-                end
         end
 
                 -- check if all medication names and ids in the database are unique
@@ -434,24 +396,6 @@ feature --util
                 end
         end
 
-                -- print out all patients in the patient database
-        patient_to_string : STRING
-        local
-                temp : STRING
-        do
-                from
-                        patient_set.start
-                        temp := ""
-                until
-                        patient_set.after
-                loop
-                        temp := temp + "%N    " + patient_set.item.id.out + "->" + patient_set.item.name.out
-                        patient_set.forth
-                end
-                temp := temp +"%N"
-                Result := temp
-        end
-
                 -- print out all medications in the medication database
         medication_to_string : STRING
         local
@@ -471,6 +415,190 @@ feature --util
         end
 
 
+        -----------------------------------------------------------------------------MEDICATION HELPERS END
+
+        ------------------------------------------------------------------------------------PATIENT HELPERS
+                --Is the structure sorted?
+        patient_is_sorted: BOOLEAN
+        local
+                temp_patient : PATIENT
+
+		  do
+                from
+                        patient_set.start
+                        Result := true
+                until
+                        patient_set.after or not Result
+                loop
+                        temp_patient := patient_set.item
+                        patient_set.forth
+                        if (not patient_set.after) then
+                                Result := temp_patient.id <= patient_set.item.id
+                        end
+                end
+        end
+
+                -- check if patient with this id and name exists in the database
+        pt_exists(id: INTEGER_64; name: STRING): BOOLEAN
+        do
+                from
+                        patient_set.start
+                        Result := false
+                until
+                        Result or patient_set.after
+                loop
+                        if (patient_set.item.id = id) and (patient_set.item.name ~ name) then
+                                Result := true
+                        end
+                        patient_set.forth
+                end
+
+        end
+
+                -- is the new id unique
+        is_id_unique(id: INTEGER_64): BOOLEAN
+        do
+                from
+                        patient_set.start
+                        Result := true
+                until
+                        patient_set.after or not (Result)
+                loop
+                        if patient_set.item.id = id then
+                                Result := false
+                        end
+                        patient_set.forth
+                end
+        end
+
+                -- are patients other than `id' unchanged?
+        pt_unchanged_other_than(id: INTEGER_64; old_patient_set: like patient_set): BOOLEAN
+        do
+                old_patient_set.compare_objects
+                from
+                        Result := true
+                        patient_set.start
+                until
+                        patient_set.after or not Result
+                loop
+                        if patient_set.item.id /= id then
+                                Result := Result and then
+                                        old_patient_set.has (patient_set.item)
+                        end
+                        patient_set.forth
+                end
+        ensure
+                Result =
+                        across
+                                patient_set as p all
+                                        p.item.id /= id IMPLIES
+                                                old_patient_set.has (p.item)
+                                end
+        end
+
+               -- check if all patient ids in the database are unique
+        pt_ids_is_unique: BOOLEAN
+        local
+                temp_id : INTEGER_64
+        do
+                from
+                        patient_set.start
+                        Result := true
+                until
+                        patient_set.after or not (Result)
+                loop
+                        temp_id := patient_set.item.id
+                        from
+                                patient_set.start
+                        until
+                                patient_set.after
+                        loop
+                                patient_set.forth
+                                if not patient_set.after then
+                                        if temp_id = patient_set.item.id then
+                                                Result := false
+                                        end
+                                end
+                        end
+                        patient_set.forth
+                end
+        end
+
+        -- print out all patients in the patient database
+        patient_to_string : STRING
+        local
+                temp : STRING
+        do
+                from
+                        patient_set.start
+                        temp := ""
+                until
+                        patient_set.after
+                loop
+                        temp := temp + "%N    " + patient_set.item.id.out + "->" + patient_set.item.name.out
+                        patient_set.forth
+                end
+                temp := temp +"%N"
+                Result := temp
+        end
+        --------------------------------------------------------------------------------PATIENT HELPERS END
+
+        ----------------------------------------------------------------------------------PHYSICIAN HELPERS
+		 --Is the structure sorted?
+		 physician_is_sorted: BOOLEAN
+        local
+                temp_phys : PHYSICIAN
+
+		  do
+                from
+                        physician_set.start
+                        Result := true
+                until
+                        physician_set.after or not Result
+                loop
+                        temp_phys := physician_set.item
+                        physician_set.forth
+                        if (not physician_set.after) then
+                                Result := temp_phys.id <= physician_set.item.id
+                        end
+                end
+        end
+		         -- is the new id unique - physician
+        phys_is_id_unique(id: INTEGER_64): BOOLEAN
+        do
+                from
+                        physician_set.start
+                        Result := true
+                until
+                        physician_set.after or not (Result)
+                loop
+                        if physician_set.item.id = id then
+                                Result := false
+                        end
+                        physician_set.forth
+                end
+        end
+
+        -- print out all physicians in the medication database
+		physician_to_string : STRING
+		local
+			temp : STRING
+		do
+			from
+				physician_set.start
+				temp := ""
+			until
+				physician_set.after
+			loop
+				temp := temp + "%N    " + physician_set.item.id.out + "->" + physician_set.item.out
+				physician_set.forth
+			end
+			temp := temp + "%N"
+			Result := temp
+		end
+         -----------------------------------------------------------------------------PHYSICIAN HELPERS END
+
+
 feature -- queries
                 -- print out the state of the entire class
         out : STRING
@@ -478,7 +606,8 @@ feature -- queries
                         temp : STRING
                 do
                         temp := "  " + i.out + ": " + report.out + "%N"
-                        temp := temp + "  Physicians:%N  Patients: " + patient_to_string.out + "  "
+                        temp := temp + "  Physicians: " + physician_to_string.out + "  "
+                        temp := temp + "Patients: " + patient_to_string.out + "  "
                         temp := temp + "Medications: " + medication_to_string + "  "
                         temp:= temp + "Interactions: %N  Prescriptions:%N"
                         create Result.make_from_string (temp)

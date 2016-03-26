@@ -58,7 +58,13 @@ feature --model methods
         local
                 temp : STRING
         do
-                temp := "[" + physician.name + "," + physician.kind + "]"
+        		temp := "[" + name + ","
+        		if (type = 3) then
+                        temp := temp + "gn,"
+                else
+                        temp := temp + "sp"
+                end
+                temp	:= temp + "]"
 
                 Result := temp
         end
