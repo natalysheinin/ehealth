@@ -210,16 +210,32 @@ feature --command
 
         add_interaction(a_id: INTEGER_64; b_id: INTEGER_64)
         require
-        	both_medicines_exist:
+        	medicine_1_exists:
+        			true
+        	medicine_2_exists:
         			true
         	check_interaction_exists:
         			not interaction_exists
+        	different_intereactions:
+        		--a_id != b_id
+        			true
 
         local
         	new_interaction : INTERACTION
-
+			md1 : STRING
+			md2 : STRING
         do
-        	create new_interaction.make (a_id, b_id)
+        	--get medicine names
+			md1 := medicine_set.at (get_md(a_id)).medicine.name
+			md2 := medicine_set.at (get_md(b_id)).medicine.name
+
+            --set id1 to medicine who's name is less
+            if (md1 < md2) then
+            	create new_interaction.make (a_id, b_id)
+            else
+            	create new_interaction.make (b_id, a_id)
+            end
+
         	interactions.extend (new_interaction)
         	set_report("ok")
 
@@ -264,9 +280,78 @@ feature --util
 		do
 			Result := false
 		end
+
+		-- print out all interactions in the medication database
+		interaction_to_string : STRING
+		local
+			temp : STRING
+		do
+			from
+				interactions.start
+				temp := ""
+			until
+				interactions.after
+			loop
+				temp := temp + "%N    [" + medicine_set.at(get_md(interactions.item.id1)).medicine.name + ","
+--				temp := temp + medicine_set.at(get_md(interactions.item.id1)).medicine.kind + ","
+--				temp := temp + medicine_set.at(get_md(interactions.item.id1)).id + "]->"
+				temp := temp + medicine_set.at(get_md(interactions.item.id2)).medicine.name + ","
+--				temp := temp + medicine_set.at(get_md(interactions.item.id2)).medicine.kind + ","
+--				temp := temp + medicine_set.at(get_md(interactions.item.id2)).id + "]"
+
+
+				interactions.forth
+			end
+			temp := temp + "%N"
+			Result := temp
+		end
         ----------------------------------------------------------------------------INTERACTION HELPERS END
 
         ---------------------------------------------------------------------------------MEDICATION HELPERS
+               -- get index of medicine using the_id
+        get_md(the_id: INTEGER_64): INTEGER
+        local
+        	temp : BOOLEAN
+        	count : INTEGER
+        do
+                from
+                        medicine_set.start
+                        temp := true
+						count := 1
+
+                until
+                        medicine_set.after or not(temp)
+                loop
+                        if (medicine_set.item.id ~ the_id) then
+                        		temp := false
+
+                        end
+                        medicine_set.forth
+                        count := count + 1
+                end
+                Result := count
+        end
+
+
+               -- find medicine with id
+        md_exists_2(the_id: INTEGER_64): BOOLEAN
+        do
+                from
+                        medicine_set.start
+                        Result := true
+
+                until
+                        medicine_set.after or not(Result)
+                loop
+                        if (medicine_set.item.id ~ the_id) then
+                        		Result  := false
+
+                        end
+                        medicine_set.forth
+                end
+        end
+
+
                 -- check if medication already exists in the database
         md_exists(a_id: INTEGER_64; name: STRING; kind: INTEGER_64; low: VALUE; hi: VALUE): BOOLEAN
         do
@@ -596,6 +681,8 @@ feature --util
 			temp := temp + "%N"
 			Result := temp
 		end
+
+
          -----------------------------------------------------------------------------PHYSICIAN HELPERS END
 
 
@@ -609,7 +696,8 @@ feature -- queries
                         temp := temp + "  Physicians: " + physician_to_string.out + "  "
                         temp := temp + "Patients: " + patient_to_string.out + "  "
                         temp := temp + "Medications: " + medication_to_string + "  "
-                        temp:= temp + "Interactions: %N  Prescriptions:%N"
+                        temp := temp + "Interactions: " + interaction_to_string + " %N"
+                        temp := temp + " Prescriptions:%N"
                         create Result.make_from_string (temp)
                 end
 

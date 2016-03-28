@@ -20,7 +20,6 @@ feature -- command
 
 			-- make sure interaction doesn't already exist
 			if model.interaction_exists then
-
 				model.set_report (model.interaction_not_unique)
 			else
 				model.add_interaction (id1, id2)
