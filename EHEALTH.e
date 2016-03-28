@@ -128,6 +128,21 @@ feature {ETF_COMMAND} -- reports
         		Result := "interaction already exists"
         end
 
+        interaction_different: STRING
+        attribute
+        		Result := "medication ids must be different"
+        end
+
+        interaction_not_registered: STRING
+        attribute
+        		Result := "medications with these ids must be registered"
+        end
+
+        invalid_interaction_id: STRING
+        attribute
+        		Result := "medication ids must be positive integers"
+        end
+
 feature -- set report
         set_report (nr: STRING)
         do
@@ -211,15 +226,17 @@ feature --command
         add_interaction(a_id: INTEGER_64; b_id: INTEGER_64)
         require
         	medicine_1_exists:
-        			true
+        			md_exists_2(a_id)
         	medicine_2_exists:
-        			true
+        			md_exists_2(b_id)
         	check_interaction_exists:
---        			not interaction_existsk
-        			true
+        			not interaction_exists(a_id, b_id)
         	different_intereactions:
-        		--a_id != b_id
-        			true
+        			not(a_id = b_id)
+        	is_valid:
+        			is_id_overflow(a_id)
+        	is_valid_2:
+        			is_id_overflow(b_id)
 
         local
         	new_interaction : INTERACTION
@@ -247,8 +264,6 @@ feature --command
         end
 
 feature --util
-
-
                 -- is id greater than or less than limits
         is_id_overflow(id: INTEGER_64): BOOLEAN
         do
@@ -261,8 +276,6 @@ feature --util
                 Result = (id <= 9223372036854775807 and id >= 1)
         end
 
-
-
                 -- is this name a valid name (does it start with a letter)
         name_valid(name: STRING): BOOLEAN
         do
@@ -273,18 +286,30 @@ feature --util
                 end
         end
 
-
-
-
-
 		--------------------------------------------------------------------------------INTERACTION HELPERS
-		interaction_exists: BOOLEAN
+		-- returns true if interaction exists
+		interaction_exists(id1: INTEGER_64; id2: INTEGER_64): BOOLEAN
 		do
-			Result := false
+			from
+				interactions.start
+				Result := false
+			until
+				interactions.after or Result
+			loop
+				if (interactions.item.id1 = id1 AND interactions.item.id2 = id2) then
+					Result := true
+				elseif (interactions.item.id1 = id2 AND interactions.item.id2 = id1) then
+					Result := true
+				else
+					Result := false
+				end
+
+				interactions.forth
+			end
+
 		end
 
 		-- print out all interactions in the medication database
-		-- not working
 		interaction_to_string : STRING
 		local
 			temp : STRING
@@ -295,18 +320,24 @@ feature --util
 			until
 				interactions.after
 			loop
---				temp := temp + get_md(interactions.item.id1).out + "%N "
 				temp := temp + "%N    [" + (medicine_set.at(get_md(interactions.item.id1)).medicine.name).out + ","
-				temp := temp + (medicine_set.at(get_md(interactions.item.id1)).medicine.kind).out + ","
+				if ((medicine_set.at(get_md(interactions.item.id1)).medicine.kind) = 1) then
+                        temp := temp + "pl,"
+                else
+                        temp := temp + "lq,"
+                end
 				temp := temp + (medicine_set.at(get_md(interactions.item.id1)).id ).out + "]->["
 				temp := temp + (medicine_set.at(get_md(interactions.item.id2)).medicine.name).out + ","
-				temp := temp + (medicine_set.at(get_md(interactions.item.id2)).medicine.kind).out + ","
+				if ((medicine_set.at(get_md(interactions.item.id2)).medicine.kind) = 1) then
+			                        temp := temp + "pl,"
+			                else
+			                        temp := temp + "lq,"
+			                end
 	 			temp := temp + (medicine_set.at(get_md(interactions.item.id2)).id).out + "]"
-
 
 				interactions.forth
 			end
-			temp := temp + "%N"
+
 			Result := temp
 		end
         ----------------------------------------------------------------------------INTERACTION HELPERS END
@@ -342,13 +373,13 @@ feature --util
         do
                 from
                         medicine_set.start
-                        Result := true
+                        Result := false
 
                 until
-                        medicine_set.after or not(Result)
+                        medicine_set.after or Result
                 loop
-                        if (medicine_set.item.id ~ the_id) then
-                        		Result  := false
+                        if (medicine_set.item.id = the_id) then
+                        		Result  := true
 
                         end
                         medicine_set.forth

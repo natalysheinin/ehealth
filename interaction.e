@@ -37,13 +37,10 @@ feature --redefine COMPARABLE methods
               do
                 if (other.id1 = id1 AND other.id2 = id2) then
                 	Result := true
-                elseif (other.id1 = id2 AND other.id2 = id1) then
-                	Result := true
-                else
-                	Result := false
 
                 end
-
+			  ensure then
+		      	Result = (other.id1 = id1 AND other.id2 = id2)
               end
 
         is_less alias "<" (other: like Current): BOOLEAN
@@ -57,24 +54,5 @@ feature --redefine COMPARABLE methods
                 ensure then
                         Result = (id1 < other.id1)
                 end
-
---feature --model methods
-
---        out : STRING
---        local
---                temp : STRING
---        do
---        	
---        		temp := "[" + name + ","
---        		if (type = 3) then
---                        temp := temp + "gn,"
---                else
---                        temp := temp + "sp"
---                end
---                temp	:= temp + "]"
-
---                Result := temp
---        end
-
 
 end
