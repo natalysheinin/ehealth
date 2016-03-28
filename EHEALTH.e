@@ -215,7 +215,8 @@ feature --command
         	medicine_2_exists:
         			true
         	check_interaction_exists:
-        			not interaction_exists
+--        			not interaction_existsk
+        			true
         	different_intereactions:
         		--a_id != b_id
         			true
@@ -226,8 +227,9 @@ feature --command
 			md2 : STRING
         do
         	--get medicine names
-			md1 := medicine_set.at (get_md(a_id)).medicine.name
-			md2 := medicine_set.at (get_md(b_id)).medicine.name
+
+			md1 := (medicine_set.at (get_md(a_id))).medicine.name
+			md2 := (medicine_set.at (get_md(b_id))).medicine.name
 
             --set id1 to medicine who's name is less
             if (md1 < md2) then
@@ -282,6 +284,7 @@ feature --util
 		end
 
 		-- print out all interactions in the medication database
+		-- not working
 		interaction_to_string : STRING
 		local
 			temp : STRING
@@ -292,12 +295,13 @@ feature --util
 			until
 				interactions.after
 			loop
-				temp := temp + "%N    [" + medicine_set.at(get_md(interactions.item.id1)).medicine.name + ","
---				temp := temp + medicine_set.at(get_md(interactions.item.id1)).medicine.kind + ","
---				temp := temp + medicine_set.at(get_md(interactions.item.id1)).id + "]->"
-				temp := temp + medicine_set.at(get_md(interactions.item.id2)).medicine.name + ","
---				temp := temp + medicine_set.at(get_md(interactions.item.id2)).medicine.kind + ","
---				temp := temp + medicine_set.at(get_md(interactions.item.id2)).id + "]"
+--				temp := temp + get_md(interactions.item.id1).out + "%N "
+				temp := temp + "%N    [" + (medicine_set.at(get_md(interactions.item.id1)).medicine.name).out + ","
+				temp := temp + (medicine_set.at(get_md(interactions.item.id1)).medicine.kind).out + ","
+				temp := temp + (medicine_set.at(get_md(interactions.item.id1)).id ).out + "]->["
+				temp := temp + (medicine_set.at(get_md(interactions.item.id2)).medicine.name).out + ","
+				temp := temp + (medicine_set.at(get_md(interactions.item.id2)).medicine.kind).out + ","
+	 			temp := temp + (medicine_set.at(get_md(interactions.item.id2)).id).out + "]"
 
 
 				interactions.forth
@@ -317,12 +321,12 @@ feature --util
                 from
                         medicine_set.start
                         temp := true
-						count := 1
+						count := 0
 
                 until
                         medicine_set.after or not(temp)
                 loop
-                        if (medicine_set.item.id ~ the_id) then
+                        if (medicine_set.item.id = the_id) then
                         		temp := false
 
                         end
@@ -696,7 +700,7 @@ feature -- queries
                         temp := temp + "  Physicians: " + physician_to_string.out + "  "
                         temp := temp + "Patients: " + patient_to_string.out + "  "
                         temp := temp + "Medications: " + medication_to_string + "  "
-                        temp := temp + "Interactions: " + interaction_to_string + " %N"
+                        temp := temp + "Interactions: "  + interaction_to_string + " %N "
                         temp := temp + " Prescriptions:%N"
                         create Result.make_from_string (temp)
                 end
