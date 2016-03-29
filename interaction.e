@@ -23,7 +23,6 @@ feature{NONE} -- Creation
                        	 id2 := b_id
 
                 end
-             -- might change interaction to actually be made up of 2 medicine objects instead of integers.
 
 feature -- interaction attributes
 
@@ -54,5 +53,4 @@ feature --redefine COMPARABLE methods
                 ensure then
                         Result = (id1 < other.id1)
                 end
-
 end

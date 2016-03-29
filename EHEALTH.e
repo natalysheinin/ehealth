@@ -30,25 +30,29 @@ feature {NONE} -- Initialization
                         i := 0
                                 -- initial size of patient hash talbe is 0
                         create {SORTED_TWO_WAY_LIST[PATIENT]} patient_set.make
-                        create {SORTED_TWO_WAY_LIST[MEDICATION]} medicine_set.make
+                        create {SORTED_TWO_WAY_LIST[MEDICATION]} medication_set.make
                         create {SORTED_TWO_WAY_LIST[PHYSICIAN]} physician_set.make
-                        create {SORTED_TWO_WAY_LIST[PERSCRIPTION]} perscriptions.make
+                        create {SORTED_TWO_WAY_LIST[PRESCRIPTION]} prescriptions.make
 						create {SORTED_TWO_WAY_LIST[INTERACTION]} interactions.make
+						create {SORTED_TWO_WAY_LIST[MEDICINE]} medicines.make
+
+
 
                         set_report("ok")
                 end
 
-feature -- model attributes
+feature {NONE} -- model attributes
         s : STRING
         i : INTEGER_64
 
                 -- INTEGER_64 used to meet range requirment of id
         patient_set : LIST[PATIENT]
-        medicine_set : LIST[MEDICATION]
+        medication_set : LIST[MEDICATION]
         physician_set : LIST[PHYSICIAN]
 
         interactions: LIST[INTERACTION]
-        perscriptions: LIST[PERSCRIPTION]
+        prescriptions: LIST[PRESCRIPTION]
+        medicines: LIST[MEDICINE]
 
 feature -- model operations
         default_update
@@ -145,6 +149,26 @@ feature {ETF_COMMAND} -- reports
         		Result := "medication ids must be positive integers"
         end
 
+        prescription_not_unique: STRING
+        attribute
+        		Result := "prescription id already in use"
+        end
+
+        physician_not_valid: STRING
+        attribute
+        		Result := "physician with this id not registered"
+        end
+
+        perscription_nonpositive: STRING
+        attribute
+        		Result := " prescription id must be a positive integer"
+        end
+
+		patient_not_valid: STRING
+		attribute
+				Result := "physician with this id not registered"
+		end
+
 feature -- set report
         set_report (nr: STRING)
         do
@@ -214,17 +238,18 @@ feature --command
                 new_medication : MEDICATION
         do
                 create new_medication.make (id, medicine.name, medicine.kind, medicine.low, medicine.hi)
-                medicine_set.extend (new_medication)
+                medication_set.extend (new_medication)
                 set_report("ok")
         ensure
                 number_of_md_increased:
-                        medicine_set.count = old medicine_set.count + 1
+                        medication_set.count = old medication_set.count + 1
                 md_added_to_list:
                         md_exists(id, medicine.name, medicine.kind, medicine.low, medicine.hi)
                 other_md_unchanged:
-                        pd_unchanged_other_than(id, medicine.name, old medicine_set.deep_twin)
+                        pd_unchanged_other_than(id, medicine.name, old medication_set.deep_twin)
         end
 
+			-- add new interaction to the database
         add_interaction(a_id: INTEGER_64; b_id: INTEGER_64)
         require
         	medicine_1_exists:
@@ -247,8 +272,8 @@ feature --command
         do
         	--get medicine names
 
-			md1 := (medicine_set.at (get_md(a_id))).medicine.name
-			md2 := (medicine_set.at (get_md(b_id))).medicine.name
+			md1 := (medication_set.at (get_md(a_id))).medicine.name
+			md2 := (medication_set.at (get_md(b_id))).medicine.name
 
             --set id1 to medicine who's name is less
             if (md1 < md2) then
@@ -265,6 +290,59 @@ feature --command
                         interactions.count = old interactions.count + 1
         end
 
+        	--add a prescription to the database
+        new_prescription(id: INTEGER_64 ; doctor: INTEGER_64 ; patient: INTEGER_64)
+        require
+        	ps_by_generalist:
+        		true
+        	id_is_valid:
+        		is_id_overflow(id)
+        	doc_is_valid:
+        		is_id_overflow(doctor)
+        	patient_is_valid:
+        		is_id_overflow(patient)
+        	id_is_unique:
+        		not(prescription_exists(id))
+        	doc_exists:
+        		phys_exists(doctor)
+        	patient_exists:
+        		pt_id_exists(patient)
+        local
+        	new_ps : PRESCRIPTION
+        do
+        	create new_ps.make (id, doctor, patient)
+        	prescriptions.extend (new_ps)
+        	set_report("ok")
+
+        end
+
+        	--add a medicine to a prescription (stores it in medicine database)
+        	add_medicine(med_id: INTEGER_64 ; medicine: INTEGER_64 ; dose: VALUE)
+        	require
+        		id_is_valid:
+        			is_id_overflow(med_id)
+        		med_id_is_valid:
+        			is_id_overflow(medicine)
+        		dose_is_valid:
+        			true
+        		medication_exists:
+        			md_exists_2(medicine)
+        		medicine_is_unique:
+        			true
+        		-- A new medicine can be added to a prescription by a generalist provided that it does not
+				-- cause a dangerous interaction with other medicines taken by the patient. A specialist can add
+				-- a dangerous interaction, provided it appears in the dpr_q query.
+        		medicine_safe:
+        			true
+			local
+				new_medicine : MEDICINE
+			do
+				create new_medicine.make (med_id, medicine, dose)
+				medicines.extend(new_medicine)
+				set_report("ok")
+
+			end
+
 feature --util
                 -- is id greater than or less than limits
         is_id_overflow(id: INTEGER_64): BOOLEAN
@@ -278,6 +356,17 @@ feature --util
                 Result = (id <= 9223372036854775807 and id >= 1)
         end
 
+--		 is_value_overflow(id: VALUE): BOOLEAN
+--        do
+--                if (id > 9223372036854775807 or id < 1) then
+--                        Result := false
+--                else
+--                        Result := true
+--                end
+--        ensure
+--                Result = (id <= 9223372036854775807 and id >= 1)
+--        end
+
                 -- is this name a valid name (does it start with a letter)
         name_valid(name: STRING): BOOLEAN
         do
@@ -287,6 +376,68 @@ feature --util
                         Result := false
                 end
         end
+       	-----------------------------------------------------------------------------------MEDICINE HELPERS
+       	-- print out all prescriptions in the prescriptions database
+		medicine_to_string : STRING
+		local
+			temp : STRING
+		do
+			from
+				medicines.start
+				temp := ""
+			until
+				medicines.after
+			loop
+				  temp := temp + medicines.item.out
+				  medicines.forth
+			end
+
+			Result := temp
+		end
+       	-------------------------------------------------------------------------------MEDICINE HELPERS END
+		-------------------------------------------------------------------------------PRESCRIPTION HELPERS
+		--if prescription exists, returns true, otherwise returns false.
+		prescription_exists(id: INTEGER_64) : BOOLEAN
+		do
+			from
+                        prescriptions.start
+                        Result := false
+
+                until
+                        prescriptions.after or Result
+                loop
+                        if (prescriptions.item.p_id = id) then
+                        		Result  := true
+
+                        end
+                        prescriptions.forth
+                end
+		end
+
+
+		-- print out all prescriptions in the prescriptions database
+		prescriptions_to_string : STRING
+		local
+			temp : STRING
+		do
+			from
+				prescriptions.start
+				temp := ""
+			until
+				prescriptions.after
+			loop
+				  temp := temp + "%N    " + prescriptions.item.p_id.out + "->" + prescriptions.item.out
+				  temp := temp + "("
+				  -- print associated medicines here AKA call medicine out method
+				  temp := temp + medicine_to_string
+				  temp := temp + ")]"
+
+				prescriptions.forth
+			end
+
+			Result := temp
+		end
+		----------------------------------------------------------------------------PRESCRIPTION HELPERS END
 
 		--------------------------------------------------------------------------------INTERACTION HELPERS
 		-- returns true if interaction exists
@@ -311,7 +462,7 @@ feature --util
 
 		end
 
-		-- print out all interactions in the medication database
+		-- print out all interactions in the interactions database
 		interaction_to_string : STRING
 		local
 			temp : STRING
@@ -322,20 +473,20 @@ feature --util
 			until
 				interactions.after
 			loop
-				temp := temp + "%N    [" + (medicine_set.at(get_md(interactions.item.id1)).medicine.name).out + ","
-				if ((medicine_set.at(get_md(interactions.item.id1)).medicine.kind) = 1) then
+				temp := temp + "%N    [" + (medication_set.at(get_md(interactions.item.id1)).medicine.name).out + ","
+				if ((medication_set.at(get_md(interactions.item.id1)).medicine.kind) = 1) then
                         temp := temp + "pl,"
                 else
                         temp := temp + "lq,"
                 end
-				temp := temp + (medicine_set.at(get_md(interactions.item.id1)).id ).out + "]->["
-				temp := temp + (medicine_set.at(get_md(interactions.item.id2)).medicine.name).out + ","
-				if ((medicine_set.at(get_md(interactions.item.id2)).medicine.kind) = 1) then
+				temp := temp + (medication_set.at(get_md(interactions.item.id1)).id ).out + "]->["
+				temp := temp + (medication_set.at(get_md(interactions.item.id2)).medicine.name).out + ","
+				if ((medication_set.at(get_md(interactions.item.id2)).medicine.kind) = 1) then
 			                        temp := temp + "pl,"
 			                else
 			                        temp := temp + "lq,"
 			                end
-	 			temp := temp + (medicine_set.at(get_md(interactions.item.id2)).id).out + "]"
+	 			temp := temp + (medication_set.at(get_md(interactions.item.id2)).id).out + "]"
 
 				interactions.forth
 			end
@@ -352,18 +503,18 @@ feature --util
         	count : INTEGER
         do
                 from
-                        medicine_set.start
+                        medication_set.start
                         temp := true
 						count := 0
 
                 until
-                        medicine_set.after or not(temp)
+                        medication_set.after or not(temp)
                 loop
-                        if (medicine_set.item.id = the_id) then
+                        if (medication_set.item.id = the_id) then
                         		temp := false
 
                         end
-                        medicine_set.forth
+                        medication_set.forth
                         count := count + 1
                 end
                 Result := count
@@ -371,20 +522,21 @@ feature --util
 
 
                -- find medicine with id
+               -- returns true if found, false otherwise
         md_exists_2(the_id: INTEGER_64): BOOLEAN
         do
                 from
-                        medicine_set.start
+                        medication_set.start
                         Result := false
 
                 until
-                        medicine_set.after or Result
+                        medication_set.after or Result
                 loop
-                        if (medicine_set.item.id = the_id) then
+                        if (medication_set.item.id = the_id) then
                         		Result  := true
 
                         end
-                        medicine_set.forth
+                        medication_set.forth
                 end
         end
 
@@ -393,19 +545,19 @@ feature --util
         md_exists(a_id: INTEGER_64; name: STRING; kind: INTEGER_64; low: VALUE; hi: VALUE): BOOLEAN
         do
                 from
-                        medicine_set.start
+                        medication_set.start
                         Result := false
                 until
-                        Result or medicine_set.after
+                        Result or medication_set.after
                 loop
-                        if (medicine_set.item.id = a_id and
-                                medicine_set.item.medicine.name ~ name) then
+                        if (medication_set.item.id = a_id and
+                                medication_set.item.medicine.name ~ name) then
                                 Result := true
                         end
-                        medicine_set.forth
+                        medication_set.forth
                 end
         ensure
-                Result = across medicine_set as md some
+                Result = across medication_set as md some
                                         md.item.id = a_id and md.item.medicine.name ~ name
                                  end
         end
@@ -414,15 +566,15 @@ feature --util
         mn_name_unique(name: STRING): BOOLEAN
         do
                 from
-                        medicine_set.start
+                        medication_set.start
                         Result := true
                 until
-                        medicine_set.after or not(Result)
+                        medication_set.after or not(Result)
                 loop
-                        if (medicine_set.item.medicine.name ~ name) then
+                        if (medication_set.item.medicine.name ~ name) then
                                 Result := false
                         end
-                        medicine_set.forth
+                        medication_set.forth
                 end
         end
 
@@ -432,15 +584,15 @@ feature --util
                 temp_medication : MEDICATION
         do
                 from
-                        medicine_set.start
+                        medication_set.start
                         Result := true
                 until
-                        medicine_set.after or not Result
+                        medication_set.after or not Result
                 loop
-                        temp_medication := medicine_set.item
-                        medicine_set.forth
-                        if (not medicine_set.after) then
-                                Result := temp_medication.id <= medicine_set.item.id
+                        temp_medication := medication_set.item
+                        medication_set.forth
+                        if (not medication_set.after) then
+                                Result := temp_medication.id <= medication_set.item.id
                         end
                 end
         end
@@ -448,42 +600,42 @@ feature --util
         md_is_id_unique(id: INTEGER_64): BOOLEAN
         do
                 from
-                        medicine_set.start
+                        medication_set.start
                         Result := true
                 until
-                        medicine_set.after or not (Result)
+                        medication_set.after or not (Result)
                 loop
-                        if medicine_set.item.id = id then
+                        if medication_set.item.id = id then
                                 Result := false
                         end
-                        medicine_set.forth
+                        medication_set.forth
                 end
         end
 
                  -- are medications other than `id' and `name' unchanged?
-        pd_unchanged_other_than(id: INTEGER_64; name: STRING; old_medicine_set: like medicine_set): BOOLEAN
+        pd_unchanged_other_than(id: INTEGER_64; name: STRING; old_medication_set: like medication_set): BOOLEAN
         do
-                old_medicine_set.compare_objects
+                old_medication_set.compare_objects
 
 		 from
                         Result := true
-                        medicine_set.start
+                        medication_set.start
                 until
-                        medicine_set.after or not Result
+                        medication_set.after or not Result
                 loop
-                        if (medicine_set.item.id /= id and
-                                        medicine_set.item.medicine.name ~ name) then
+                        if (medication_set.item.id /= id and
+                                        medication_set.item.medicine.name ~ name) then
                                 Result := Result and then
-                                        old_medicine_set.has (medicine_set.item)
+                                        old_medication_set.has (medication_set.item)
                         end
-                        medicine_set.forth
+                        medication_set.forth
                 end
         ensure
                 Result =
                         across
-                                medicine_set as m all
+                                medication_set as m all
                                         m.item.id /= id and m.item.medicine.name /~ name IMPLIES
-                                                old_medicine_set.has (m.item)
+                                                old_medication_set.has (m.item)
                                 end
         end
 
@@ -494,27 +646,27 @@ feature --util
                 temp_name : STRING
         do
                 from
-                        medicine_set.start
+                        medication_set.start
                         Result := true
                 until
-                        medicine_set.after or not (Result)
+                        medication_set.after or not (Result)
                 loop
-                        temp_id := medicine_set.item.id
-                        temp_name := medicine_set.item.medicine.name
+                        temp_id := medication_set.item.id
+                        temp_name := medication_set.item.medicine.name
                         from
-                                medicine_set.start
+                                medication_set.start
                         until
-                                medicine_set.after
+                                medication_set.after
                         loop
-                                medicine_set.forth
-                                if not medicine_set.after then
-                                        if temp_id = medicine_set.item.id or
-                                           temp_name ~ medicine_set.item.medicine.name then
+                                medication_set.forth
+                                if not medication_set.after then
+                                        if temp_id = medication_set.item.id or
+                                           temp_name ~ medication_set.item.medicine.name then
                                                 Result := false
                                         end
                                 end
                         end
-                        medicine_set.forth
+                        medication_set.forth
                 end
         end
 
@@ -524,13 +676,13 @@ feature --util
                 temp : STRING
         do
                 from
-                        medicine_set.start
+                        medication_set.start
                         temp := ""
                 until
-                        medicine_set.after
+                        medication_set.after
                 loop
-                        temp := temp + "%N    " + medicine_set.item.id.out + "->" + medicine_set.item.out
-						medicine_set.forth
+                        temp := temp + "%N    " + medication_set.item.id.out + "->" + medication_set.item.out
+						medication_set.forth
                 end
                 temp := temp + "%N"
                 Result := temp
@@ -561,6 +713,7 @@ feature --util
         end
 
                 -- check if patient with this id and name exists in the database
+                -- returns true if patient exists, false otherwise
         pt_exists(id: INTEGER_64; name: STRING): BOOLEAN
         do
                 from
@@ -570,6 +723,23 @@ feature --util
                         Result or patient_set.after
                 loop
                         if (patient_set.item.id = id) and (patient_set.item.name ~ name) then
+                                Result := true
+                        end
+                        patient_set.forth
+                end
+
+        end
+        		-- check if patient with this id and name exists in the database using just id
+                -- returns true if patient exists, false otherwise
+        pt_id_exists(id: INTEGER_64): BOOLEAN
+         do
+                from
+                        patient_set.start
+                        Result := false
+                until
+                        Result or patient_set.after
+                loop
+                        if (patient_set.item.id = id) then
                                 Result := true
                         end
                         patient_set.forth
@@ -701,6 +871,22 @@ feature --util
                 end
         end
 
+				-- returns true if physician exists, and false otherwise
+		phys_exists(id: INTEGER_64) : BOOLEAN
+		 do
+                from
+                        physician_set.start
+                        Result := false
+                until
+                        physician_set.after or Result
+                loop
+                        if physician_set.item.id = id then
+                                Result := true
+                        end
+                        physician_set.forth
+                end
+        end
+
         -- print out all physicians in the medication database
 		physician_to_string : STRING
 		local
@@ -734,7 +920,7 @@ feature -- queries
                         temp := temp + "Patients: " + patient_to_string.out + "  "
                         temp := temp + "Medications: " + medication_to_string + "  "
                         temp := temp + "Interactions: "  + interaction_to_string + " %N "
-                        temp := temp + " Prescriptions:%N"
+                        temp := temp + " Prescriptions: " + prescriptions_to_string + "%N"
                         create Result.make_from_string (temp)
                 end
 

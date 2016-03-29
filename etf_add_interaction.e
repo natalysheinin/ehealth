@@ -19,7 +19,7 @@ feature -- command
 --			-- perform some update on the model state
 
 			-- make sure interaction doesn't already exist
-			if model.is_id_overflow (id1) or model.is_id_overflow(id2) then
+			if not (model.is_id_overflow (id1)) or not(model.is_id_overflow(id2)) then
 				model.set_report(model.invalid_interaction_id)
 			elseif id1 = id2 then
 				model.set_report(model.interaction_different)
