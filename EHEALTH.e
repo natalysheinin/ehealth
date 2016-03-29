@@ -32,8 +32,9 @@ feature {NONE} -- Initialization
                         create {SORTED_TWO_WAY_LIST[PATIENT]} patient_set.make
                         create {SORTED_TWO_WAY_LIST[MEDICATION]} medicine_set.make
                         create {SORTED_TWO_WAY_LIST[PHYSICIAN]} physician_set.make
---                        create {SORTED_TWO_WAY_LIST[PERSCRIPTION]} perscriptions.make
+                        create {SORTED_TWO_WAY_LIST[PERSCRIPTION]} perscriptions.make
 						create {SORTED_TWO_WAY_LIST[INTERACTION]} interactions.make
+
                         set_report("ok")
                 end
 
@@ -47,6 +48,7 @@ feature -- model attributes
         physician_set : LIST[PHYSICIAN]
 
         interactions: LIST[INTERACTION]
+        perscriptions: LIST[PERSCRIPTION]
 
 feature -- model operations
         default_update
