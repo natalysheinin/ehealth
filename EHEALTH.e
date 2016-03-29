@@ -327,18 +327,76 @@ feature --command
         			true
         		medication_exists:
         			md_exists_2(medicine)
-        		medicine_is_unique:
-        			true
+        		rx_exists:
+        			prescription_exists(med_id)
         		-- A new medicine can be added to a prescription by a generalist provided that it does not
 				-- cause a dangerous interaction with other medicines taken by the patient. A specialist can add
 				-- a dangerous interaction, provided it appears in the dpr_q query.
-        		medicine_safe:
+        		--check to make sure the dosage is valid
+        		valid_dosage:
         			true
+
 			local
 				new_medicine : MEDICINE
+				my_patient : INTEGER_64
+				my_doctor_id : INTEGER_64
+				my_doctor_type : INTEGER_64
+				dangerous_interaction_exists: BOOLEAN
+
 			do
-				create new_medicine.make (med_id, medicine, dose)
-				medicines.extend(new_medicine)
+					my_patient := prescriptions.at(find_prescription_by_pid(med_id).as_integer_32).p_patient
+					my_doctor_id := prescriptions.at(find_prescription_by_pid(med_id).as_integer_32).p_doctor
+					my_doctor_type := physician_set.at(find_physician_by_id(my_doctor_id).as_integer_32).type
+					dangerous_interaction_exists := FALSE
+
+					--loop through prescriptions to find all prescriptions for a patient
+					from
+						prescriptions.start
+					until
+						prescriptions.after or dangerous_interaction_exists
+					loop
+						-- prescription for patient is found
+						if prescriptions.item.p_patient = my_patient then
+								-- loop through medicines with prescription id to find all medicines in that prescription
+								from
+									medicines.start
+								until
+									medicines.after or dangerous_interaction_exists
+								loop
+									-- medicine from a prescription is found
+									if medicines.item.med_id = prescriptions.item.p_id then
+										-- it exists in the interaction database , meaning it is dangerous and can only be added by a specialist
+										if interaction_exists(medicine, medicines.item.med_md) then
+											dangerous_interaction_exists := true
+										else
+											-- nothing happens, only add medicine once you've checked all medications
+										end
+									end
+									medicines.forth
+								end
+							end
+							prescriptions.forth
+						end
+
+					--dangerous interaction exists
+					if dangerous_interaction_exists then
+						--IF SPECIALIST: you can add
+						if (my_doctor_type = 4) then
+							create new_medicine.make (med_id, medicine, dose)
+							medicines.extend(new_medicine)
+
+						--IF GENERALIST: can't add
+						else
+							-- DO NOT ADD
+						end
+
+					--medicine is safe to add, and physician type doesn't matter
+					else
+						create new_medicine.make (med_id, medicine, dose)
+						medicines.extend(new_medicine)
+
+					end
+
 				set_report("ok")
 
 			end
@@ -377,6 +435,62 @@ feature --util
                 end
         end
        	-----------------------------------------------------------------------------------MEDICINE HELPERS
+       --goes through all prescription which match patient, and go through all
+--       check_medicine_with_rxid(pid: INTEGER_64)
+--			from
+--				medicines.start
+--			until
+--				medicines.after
+--			loop
+
+--				end
+
+
+--							if prescriptions.item.p_patient = my_patient then
+--									find_medicines_for_patient(my_patient, medicine)
+--									--go through the medicines of this prescription and run interactions_exists on each one
+--								else
+--									prescriptions.forth
+--								end
+--							end
+--       end
+
+       --check if medicine is part of a dangerous interaction
+       --returns true if medicine is part of dangerous interaction, and false if not.
+       med_is_dangerous(mid: INTEGER_64) : BOOLEAN
+       do
+       		from
+				interactions.start
+				Result := false
+			until
+				interactions.after or Result
+			loop
+				if (interactions.item.id1 = mid OR interactions.item.id2 = mid) then
+					Result := true
+				end
+
+				interactions.forth
+				end
+       end
+
+       	--if medicine exists, returns true, otherwise returns false.
+		medicine_exists(id: INTEGER_64) : BOOLEAN
+		do
+			from
+                        medicines.start
+                        Result := false
+
+                until
+                        medicines.after or Result
+                loop
+                        if (medicines.item.med_id = id) then
+                        		Result  := true
+
+                        end
+                        medicines.forth
+                end
+		end
+
        	-- print out all prescriptions in the prescriptions database
 		medicine_to_string : STRING
 		local
@@ -396,6 +510,32 @@ feature --util
 		end
        	-------------------------------------------------------------------------------MEDICINE HELPERS END
 		-------------------------------------------------------------------------------PRESCRIPTION HELPERS
+		--returns index of prescription with pid : id
+		find_prescription_by_pid(id: INTEGER_64) : INTEGER_64
+		local
+			count : INTEGER_64
+			temp : BOOLEAN
+		do
+			from
+                        prescriptions.start
+                        count := 1
+                        temp := false
+
+                until
+                        prescriptions.after or temp
+                loop
+                        if (prescriptions.item.p_id = id) then
+                        		Result := count
+                        		temp := true
+
+                        end
+                        prescriptions.forth
+                        count := count + 1
+                end
+
+		end
+
+
 		--if prescription exists, returns true, otherwise returns false.
 		prescription_exists(id: INTEGER_64) : BOOLEAN
 		do
@@ -836,6 +976,32 @@ feature --util
         --------------------------------------------------------------------------------PATIENT HELPERS END
 
         ----------------------------------------------------------------------------------PHYSICIAN HELPERS
+		 --returns index of physician with physid : id
+		find_physician_by_id(id: INTEGER_64) : INTEGER_64
+		local
+			count : INTEGER_64
+			temp : BOOLEAN
+		do
+			from
+                        physician_set.start
+                        count := 0
+                        temp := false
+
+                until
+                        physician_set.after or temp
+                loop
+                        if (physician_set.item.id = id) then
+                        		Result := count
+                        		temp := true
+
+                        end
+                        physician_set.forth
+                        count := count + 1
+                end
+
+		end
+
+
 		 --Is the structure sorted?
 		 physician_is_sorted: BOOLEAN
         local
