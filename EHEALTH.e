@@ -171,6 +171,11 @@ feature {ETF_COMMAND} -- reports
 				Result := "physician with this id not registered"
 		end
 
+		specialist_required: STRING
+		attribute
+			Result := "specialist is required to add a dangerous interaction"
+		end
+
 feature -- set report
         set_report (nr: STRING)
         do
@@ -295,8 +300,6 @@ feature --command
         	--add a prescription to the database
         new_prescription(id: INTEGER_64 ; doctor: INTEGER_64 ; patient: INTEGER_64)
         require
-        	ps_by_generalist:
-        		true
         	id_is_valid:
         		is_id_overflow(id)
         	doc_is_valid:
@@ -316,6 +319,10 @@ feature --command
         	prescriptions.extend (new_ps)
         	set_report("ok")
 
+		ensure
+			number_of_prescriptions_increased:
+				prescriptions.count = old prescriptions.count + 1
+
         end
 
         	--add a medicine to a prescription (stores it in medicine database)
@@ -331,11 +338,10 @@ feature --command
         			prescription_exists(rx_id)
         		medication_exists:
         			md_exists_2(medicine)
-
-        		-- A new medicine can be added to a prescription by a generalist provided that it does not
-				-- cause a dangerous interaction with other medicines taken by the patient. A specialist can add
-				-- a dangerous interaction, provided it appears in the dpr_q query.
-        		--check to make sure the dosage is valid
+				--NEED TO DO THIS!!! CHECK IF MEDICATION ALREADY PRESCRIBED TO PATIENT
+				already_prescribed:
+					true
+        		----NEED TO DO THIS!!! ENSURE THAT DOSAGE IS WITHIN LIMITS OF THE MEDICATION SPECIFIED
         		valid_dosage:
         			true
 
@@ -365,7 +371,9 @@ feature --command
 						--IF GENERALIST: can't add
 						else
 							-- DO NOT ADD
-							set_report("dangerous_generalist " + my_doctor_type.out + "id: " + my_doctor_id.out)
+							-- NEED TO LOOK INTO THIS! FOR PROPER DESIGN, THIS ERROR SHOULD THROW
+							-- BEFORE EVEN GETTING HERE
+							set_report(specialist_required)
 						end
 
 					--medicine is safe to add, and physician type doesn't matter
@@ -375,10 +383,30 @@ feature --command
 						set_report("ok_safe")
 
 					end
-
-
-
 			end
+
+	remove_medicine(rx_id: INTEGER_64 ; medicine: INTEGER_64)
+	require
+		rx_valid:
+			is_id_overflow(rx_id)
+		medicine_valid:
+			is_id_overflow(medicine)
+		rx_exists:
+			prescription_exists(rx_id)
+		medicine_exists:
+			md_exists_2(medicine)
+	do
+		-- find medicine with this prescription id
+
+		medicines.go_i_th (find_medicine_by_rxid(rx_id, medicine).as_integer_32)
+		medicines.remove
+
+	ensure
+		number_of_medicines_decreased:
+				medicines.count = old medicines.count - 1
+
+
+	end
 
 feature --util
                 -- is id greater than or less than limits
@@ -415,13 +443,12 @@ feature --util
         end
        	-----------------------------------------------------------------------------------MEDICINE HELPERS
        -- special helper function required for medicine creation
-       -- checks if medication that is to be added to prescription is part of a dangerous interaction
        -- returns true if medication to be added will cause dangerous interaction with another prescripted medicine, otherwise false
        check_interaction_dangerous(the_patient_id: INTEGER_64; the_medication_id: INTEGER_64) : BOOLEAN
        local
        		dangerous_interaction_exists : BOOLEAN
        do
-       	--loop through prescriptions to find all prescriptions for a patient
+       				--loop through prescriptions to find all prescriptions for a patient
 					from
 						prescriptions.start
 						dangerous_interaction_exists := FALSE
@@ -441,8 +468,6 @@ feature --util
 										-- it exists in the interaction database , meaning it is dangerous and can only be added by a specialist
 										if interaction_exists(the_medication_id, medicines.item.med_md) then
 											dangerous_interaction_exists := true
-										else
-											-- nothing happens, only add medicine once you've checked all medications
 										end
 									end
 									medicines.forth
@@ -454,6 +479,29 @@ feature --util
 						Result := dangerous_interaction_exists
        end
 
+		find_medicine_by_rxid(rx_id: INTEGER_64; med_id: INTEGER_64) : INTEGER_64
+		local
+			count : INTEGER_64
+			temp : BOOLEAN
+		do
+			from
+                        medicines.start
+                        count := 1
+                        temp := false
+
+                until
+                        medicines.after or temp
+                loop
+                        if (medicines.item.rx_id = rx_id and medicines.item.med_md = med_id) then
+                        		Result := count
+                        		temp := true
+
+                        end
+                        medicines.forth
+                        count := count + 1
+                end
+
+		end
        --check if medicine is part of a dangerous interaction
        --returns true if medicine is part of dangerous interaction, and false if not.
        med_is_dangerous(mid: INTEGER_64) : BOOLEAN
