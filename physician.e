@@ -60,7 +60,7 @@ feature --model methods
         do
         		temp := "[" + name + ","
         		if (type = 3) then
-                        temp := temp + "gn,"
+                        temp := temp + "gn"
                 else
                         temp := temp + "sp"
                 end

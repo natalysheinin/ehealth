@@ -19,7 +19,7 @@ feature{NONE} -- Creation
 
         make(id: INTEGER_64 ; medicine: INTEGER_64 ; dose: VALUE)
                 do
-                      	 med_id := id
+                      	 rx_id := id
                        	 med_md := medicine
                        	 med_dose := dose
 
@@ -27,7 +27,7 @@ feature{NONE} -- Creation
 
 feature -- interaction attributes
 
-	med_id : INTEGER_64
+	rx_id : INTEGER_64
 	med_md : INTEGER_64
 	med_dose : VALUE
 
@@ -36,12 +36,12 @@ feature --redefine COMPARABLE methods
         is_equal (other: like Current): BOOLEAN
                         -- Is `other' value equal to current
               do
-                if (other.med_id = med_id AND other.med_md = med_md AND other.med_dose = med_dose) then
+                if (other.rx_id = rx_id AND other.med_md = med_md AND other.med_dose = med_dose) then
                 	Result := true
 
                 end
 			  ensure then
-		      	Result = (other.med_id = med_id AND other.med_md = med_md AND other.med_dose = med_dose)
+		      	Result = (other.rx_id = rx_id AND other.med_md = med_md AND other.med_dose = med_dose)
               end
 
 			--based on id of medicine
@@ -50,11 +50,14 @@ feature --redefine COMPARABLE methods
                 do
                         if med_md < other.med_md then
                                 Result := true
+                        elseif med_md = other.med_md and rx_id < other.rx_id then
+                        		Result := true
                         else
                                 Result := false
                         end
                 ensure then
                         Result = (med_md < other.med_md)
+                        or else (med_md = other.med_md and rx_id < other.rx_id)
                 end
 
 feature --model methods

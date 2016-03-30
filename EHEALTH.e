@@ -26,7 +26,9 @@ feature {NONE} -- Initialization
         make
                         -- Initialization for `Current'.
                 do
-                        create s.make_empty
+
+	                        create s.make_empty
+
                         i := 0
                                 -- initial size of patient hash talbe is 0
                         create {SORTED_TWO_WAY_LIST[PATIENT]} patient_set.make
@@ -317,18 +319,19 @@ feature --command
         end
 
         	--add a medicine to a prescription (stores it in medicine database)
-        	add_medicine(med_id: INTEGER_64 ; medicine: INTEGER_64 ; dose: VALUE)
+        	add_medicine(rx_id: INTEGER_64 ; medicine: INTEGER_64 ; dose: VALUE)
         	require
         		id_is_valid:
-        			is_id_overflow(med_id)
+        			is_id_overflow(rx_id)
         		med_id_is_valid:
         			is_id_overflow(medicine)
         		dose_is_valid:
         			true
+        		rx_is_valid:
+        			prescription_exists(rx_id)
         		medication_exists:
         			md_exists_2(medicine)
-        		rx_exists:
-        			prescription_exists(med_id)
+
         		-- A new medicine can be added to a prescription by a generalist provided that it does not
 				-- cause a dangerous interaction with other medicines taken by the patient. A specialist can add
 				-- a dangerous interaction, provided it appears in the dpr_q query.
@@ -344,8 +347,8 @@ feature --command
 				dangerous_interaction_exists: BOOLEAN
 
 			do
-					my_patient := prescriptions.at(find_prescription_by_pid(med_id).as_integer_32).p_patient
-					my_doctor_id := prescriptions.at(find_prescription_by_pid(med_id).as_integer_32).p_doctor
+					my_patient := prescriptions.at(find_prescription_by_pid(rx_id).as_integer_32).p_patient
+					my_doctor_id := prescriptions.at(find_prescription_by_pid(rx_id).as_integer_32).p_doctor
 					my_doctor_type := physician_set.at(find_physician_by_id(my_doctor_id).as_integer_32).type
 					dangerous_interaction_exists := FALSE
 
@@ -364,7 +367,7 @@ feature --command
 									medicines.after or dangerous_interaction_exists
 								loop
 									-- medicine from a prescription is found
-									if medicines.item.med_id = prescriptions.item.p_id then
+									if medicines.item.rx_id = prescriptions.item.p_id then
 										-- it exists in the interaction database , meaning it is dangerous and can only be added by a specialist
 										if interaction_exists(medicine, medicines.item.med_md) then
 											dangerous_interaction_exists := true
@@ -382,22 +385,25 @@ feature --command
 					if dangerous_interaction_exists then
 						--IF SPECIALIST: you can add
 						if (my_doctor_type = 4) then
-							create new_medicine.make (med_id, medicine, dose)
+							create new_medicine.make (rx_id, medicine, dose)
 							medicines.extend(new_medicine)
+							set_report("ok_safe")
 
 						--IF GENERALIST: can't add
 						else
 							-- DO NOT ADD
+							set_report("dangerous_generalist " + my_doctor_type.out + "id: " + my_doctor_id.out)
 						end
 
 					--medicine is safe to add, and physician type doesn't matter
 					else
-						create new_medicine.make (med_id, medicine, dose)
+						create new_medicine.make (rx_id, medicine, dose)
 						medicines.extend(new_medicine)
+						set_report("ok_safe")
 
 					end
 
-				set_report("ok")
+
 
 			end
 
@@ -483,7 +489,7 @@ feature --util
                 until
                         medicines.after or Result
                 loop
-                        if (medicines.item.med_id = id) then
+                        if (medicines.item.rx_id = id) then
                         		Result  := true
 
                         end
@@ -492,18 +498,28 @@ feature --util
 		end
 
        	-- print out all prescriptions in the prescriptions database
-		medicine_to_string : STRING
+		medicine_to_string(rx_id: INTEGER_64) : STRING
 		local
 			temp : STRING
+			count : INTEGER_64
 		do
 			from
 				medicines.start
 				temp := ""
+				count := 0
 			until
 				medicines.after
 			loop
-				  temp := temp + medicines.item.out
+					if medicines.item.rx_id = rx_id then
+							if count > 0 then
+								temp := temp + ","
+							end
+							temp := temp + medicines.item.out
+							count := count + 1
+					end
+
 				  medicines.forth
+
 			end
 
 			Result := temp
@@ -569,7 +585,7 @@ feature --util
 				  temp := temp + "%N    " + prescriptions.item.p_id.out + "->" + prescriptions.item.out
 				  temp := temp + "("
 				  -- print associated medicines here AKA call medicine out method
-				  temp := temp + medicine_to_string
+				  temp := temp + medicine_to_string(prescriptions.item.p_id)
 				  temp := temp + ")]"
 
 				prescriptions.forth
@@ -984,7 +1000,7 @@ feature --util
 		do
 			from
                         physician_set.start
-                        count := 0
+                        count := 1
                         temp := false
 
                 until
