@@ -350,36 +350,9 @@ feature --command
 					my_patient := prescriptions.at(find_prescription_by_pid(rx_id).as_integer_32).p_patient
 					my_doctor_id := prescriptions.at(find_prescription_by_pid(rx_id).as_integer_32).p_doctor
 					my_doctor_type := physician_set.at(find_physician_by_id(my_doctor_id).as_integer_32).type
-					dangerous_interaction_exists := FALSE
+--					dangerous_interaction_exists := FALSE
 
-					--loop through prescriptions to find all prescriptions for a patient
-					from
-						prescriptions.start
-					until
-						prescriptions.after or dangerous_interaction_exists
-					loop
-						-- prescription for patient is found
-						if prescriptions.item.p_patient = my_patient then
-								-- loop through medicines with prescription id to find all medicines in that prescription
-								from
-									medicines.start
-								until
-									medicines.after or dangerous_interaction_exists
-								loop
-									-- medicine from a prescription is found
-									if medicines.item.rx_id = prescriptions.item.p_id then
-										-- it exists in the interaction database , meaning it is dangerous and can only be added by a specialist
-										if interaction_exists(medicine, medicines.item.med_md) then
-											dangerous_interaction_exists := true
-										else
-											-- nothing happens, only add medicine once you've checked all medications
-										end
-									end
-									medicines.forth
-								end
-							end
-							prescriptions.forth
-						end
+					dangerous_interaction_exists :=	check_interaction_dangerous(my_patient, medicine)
 
 					--dangerous interaction exists
 					if dangerous_interaction_exists then
@@ -441,25 +414,45 @@ feature --util
                 end
         end
        	-----------------------------------------------------------------------------------MEDICINE HELPERS
-       --goes through all prescription which match patient, and go through all
---       check_medicine_with_rxid(pid: INTEGER_64)
---			from
---				medicines.start
---			until
---				medicines.after
---			loop
+       -- special helper function required for medicine creation
+       -- checks if medication that is to be added to prescription is part of a dangerous interaction
+       -- returns true if medication to be added will cause dangerous interaction with another prescripted medicine, otherwise false
+       check_interaction_dangerous(the_patient_id: INTEGER_64; the_medication_id: INTEGER_64) : BOOLEAN
+       local
+       		dangerous_interaction_exists : BOOLEAN
+       do
+       	--loop through prescriptions to find all prescriptions for a patient
+					from
+						prescriptions.start
+						dangerous_interaction_exists := FALSE
+					until
+						prescriptions.after or dangerous_interaction_exists
+					loop
+						-- prescription for patient is found
+						if prescriptions.item.p_patient = the_patient_id then
+								-- loop through medicines with prescription id to find all medicines in that prescription
+								from
+									medicines.start
+								until
+									medicines.after or dangerous_interaction_exists
+								loop
+									-- medicine from a prescription is found
+									if medicines.item.rx_id = prescriptions.item.p_id then
+										-- it exists in the interaction database , meaning it is dangerous and can only be added by a specialist
+										if interaction_exists(the_medication_id, medicines.item.med_md) then
+											dangerous_interaction_exists := true
+										else
+											-- nothing happens, only add medicine once you've checked all medications
+										end
+									end
+									medicines.forth
+								end
+							end
+							prescriptions.forth
+						end
 
---				end
-
-
---							if prescriptions.item.p_patient = my_patient then
---									find_medicines_for_patient(my_patient, medicine)
---									--go through the medicines of this prescription and run interactions_exists on each one
---								else
---									prescriptions.forth
---								end
---							end
---       end
+						Result := dangerous_interaction_exists
+       end
 
        --check if medicine is part of a dangerous interaction
        --returns true if medicine is part of dangerous interaction, and false if not.
