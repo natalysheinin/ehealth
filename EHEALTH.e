@@ -176,6 +176,11 @@ feature {ETF_COMMAND} -- reports
 			Result := "specialist is required to add a dangerous interaction"
 		end
 
+		medication_not_registered: STRING
+		attribute
+			Result := "medication id must be registered"
+		end
+
 feature -- set report
         set_report (nr: STRING)
         do
@@ -407,7 +412,23 @@ feature --command
 
 
 	end
+feature --queries
 
+	dpr_q()
+	do
+		set_report("ok")
+	end
+
+	prescriptions_q(medication_id: INTEGER_64)
+	require
+		medication_valid:
+			is_id_overflow(medication_id)
+		medication_exists:
+			md_exists_2(medication_id)
+	do
+		p_q_to_string(medication_id)
+
+	end
 feature --util
                 -- is id greater than or less than limits
         is_id_overflow(id: INTEGER_64): BOOLEAN
@@ -441,6 +462,19 @@ feature --util
                         Result := false
                 end
         end
+        --------------------------------------------------------------------------------------QUERY HELPERS
+
+        p_q_to_string(mid: INTEGER_64)
+        local
+			temp : STRING
+			count : INTEGER_64
+		do
+			temp := "Output: medication is " + (medication_set.at (find_medication_by_id(mid).as_integer_32)).medicine.name.out
+			set_report(temp)
+
+        end
+        ----------------------------------------------------------------------------------QUERY HELPERS END
+
        	-----------------------------------------------------------------------------------MEDICINE HELPERS
        -- special helper function required for medicine creation
        -- returns true if medication to be added will cause dangerous interaction with another prescripted medicine, otherwise false
@@ -693,7 +727,32 @@ feature --util
         ----------------------------------------------------------------------------INTERACTION HELPERS END
 
         ---------------------------------------------------------------------------------MEDICATION HELPERS
-               -- get index of medicine using the_id
+        --returns index of medication with id : id
+		find_medication_by_id(id: INTEGER_64) : INTEGER_64
+		local
+			count : INTEGER_64
+			temp : BOOLEAN
+		do
+			from
+                        medication_set.start
+                        count := 1
+                        temp := false
+
+                until
+                        medication_set.after or temp
+                loop
+                        if (medication_set.item.id = id) then
+                        		Result := count
+                        		temp := true
+
+                        end
+                        medication_set.forth
+                        count := count + 1
+                end
+
+		end
+
+        -- get index of medicine using the_id
         get_md(the_id: INTEGER_64): INTEGER
         local
         	temp : BOOLEAN
@@ -1138,12 +1197,13 @@ feature -- queries
                 local
                         temp : STRING
                 do
+                		--NEED TO FIX OUT METHOD FOR WHEN QUERIES RUN???
                         temp := "  " + i.out + ": " + report.out + "%N"
                         temp := temp + "  Physicians: " + physician_to_string.out + "  "
                         temp := temp + "Patients: " + patient_to_string.out + "  "
                         temp := temp + "Medications: " + medication_to_string + "  "
                         temp := temp + "Interactions: "  + interaction_to_string + " %N "
-                        temp := temp + " Prescriptions: " + prescriptions_to_string + "%N"
+                        temp := temp + " Prescriptions: " + prescriptions_to_string
                         create Result.make_from_string (temp)
                 end
 
