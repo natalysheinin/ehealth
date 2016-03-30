@@ -25,6 +25,8 @@ feature -- command
 				model.set_report ("medication id not positive")
 			elseif not(model.md_exists_2(medicine)) then
 				model.set_report("specified medicine doesnt exist")
+			elseif not(model.is_dosage_valid(id, medicine, dose)) then
+				model.set_report(model.invalid_dosage)
 			else
 				model.add_medicine (id, medicine, dose)
 

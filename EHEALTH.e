@@ -1,6 +1,6 @@
 note
         description: "A default business model."
-        author: "Jackie Wang and Michael Harrison and Nataly Sheinin"
+        author: "Michael Harrison and Nataly Sheinin"
         date: "$Date$"
         revision: "$Revision$"
 
@@ -39,7 +39,7 @@ feature {NONE} -- Initialization
 						create {SORTED_TWO_WAY_LIST[MEDICINE]} medicines.make
 
 
-
+						query_active := false
                         set_report("ok")
                 end
 
@@ -56,7 +56,10 @@ feature {NONE} -- model attributes
         prescriptions: LIST[PRESCRIPTION]
         medicines: LIST[MEDICINE]
 
+        query_active : BOOLEAN
+
 feature -- model operations
+
         default_update
                         -- Perform update to the model state.
                 do
@@ -179,6 +182,11 @@ feature {ETF_COMMAND} -- reports
 		medication_not_registered: STRING
 		attribute
 			Result := "medication id must be registered"
+		end
+
+		invalid_dosage: STRING
+		attribute
+			Result := "dose is outside allowed range"
 		end
 
 feature -- set report
@@ -346,9 +354,8 @@ feature --command
 				--NEED TO DO THIS!!! CHECK IF MEDICATION ALREADY PRESCRIBED TO PATIENT
 				already_prescribed:
 					true
-        		----NEED TO DO THIS!!! ENSURE THAT DOSAGE IS WITHIN LIMITS OF THE MEDICATION SPECIFIED
         		valid_dosage:
-        			true
+        			is_dosage_valid(rx_id, medicine, dose)
 
 			local
 				new_medicine : MEDICINE
@@ -361,11 +368,9 @@ feature --command
 					my_patient := prescriptions.at(find_prescription_by_pid(rx_id).as_integer_32).p_patient
 					my_doctor_id := prescriptions.at(find_prescription_by_pid(rx_id).as_integer_32).p_doctor
 					my_doctor_type := physician_set.at(find_physician_by_id(my_doctor_id).as_integer_32).type
---					dangerous_interaction_exists := FALSE
 
 					dangerous_interaction_exists :=	check_interaction_dangerous(my_patient, medicine)
 
-					--dangerous interaction exists
 					if dangerous_interaction_exists then
 						--IF SPECIALIST: you can add
 						if (my_doctor_type = 4) then
@@ -378,6 +383,7 @@ feature --command
 							-- DO NOT ADD
 							-- NEED TO LOOK INTO THIS! FOR PROPER DESIGN, THIS ERROR SHOULD THROW
 							-- BEFORE EVEN GETTING HERE
+							-- THIS IS A DESIGN DECISION - THIS IS WHY WE ADDED A POST CONDITION
 							set_report(specialist_required)
 						end
 
@@ -414,11 +420,26 @@ feature --command
 	end
 feature --queries
 
-	dpr_q()
+	-- dangerous prescription report
+  	-- e.g. There are dangerous prescriptions:
+  	--(Dora,3)->{ [Sulfamethizole,pl,2]->[Wafarin,pl,1] }
+	dpr_q
 	do
-		set_report("ok")
+		--NEED TO DO THIS MICHAEL!!!! LOOK @ THIS
+		--might be a good idea to store dangerous prescriptions as they are being added via add_medicine as a desing deicison
+		-- -> this makes printing this report significantly easier
+		-- also need to take into consideration remove_medicine may take away this problem.
+		-- suggestion to make a data structure containing : patient name, patient id, md1, md2
+		query_active := true
+
+		--An interaction is always printed by name alphabetically, e.g. [mn3,lq,3]->[mn8,pl,8] and
+		-- not [mn8,pl,8] -> [mn3,lq,3]. However, in the dpr report, the dangerous interactions are
+		-- entered in the set in the order they appear,e.g. for patient pt3:
+		-- (pt3,3)->{ [mn1,pl,1]- >[mn2,pl,2], [mn3,lq,3]->[mn8,pl,8] }. ???? wtf test against oracle
 	end
 
+	-- shows list of patient-ids -> patients
+  	-- with this medication in a prescription
 	prescriptions_q(medication_id: INTEGER_64)
 	require
 		medication_valid:
@@ -426,6 +447,7 @@ feature --queries
 		medication_exists:
 			md_exists_2(medication_id)
 	do
+		query_active := true
 		p_q_to_string(medication_id)
 
 	end
@@ -467,11 +489,41 @@ feature --util
         p_q_to_string(mid: INTEGER_64)
         local
 			temp : STRING
-			count : INTEGER_64
 		do
-			temp := "Output: medication is " + (medication_set.at (find_medication_by_id(mid).as_integer_32)).medicine.name.out
+			temp := "Output: medication is " + (medication_set.at (find_medication_by_id(mid).as_integer_32)).medicine.name.out + "%N"
+			temp := temp + pq_helper(mid)
 			set_report(temp)
 
+        end
+
+        pq_helper(mid: INTEGER_64) : STRING
+        local
+        	temp : STRING
+        do
+        	temp := "  "
+        	from
+        		medicines.start
+        	until
+        		medicines.after
+        	loop
+        		if medicines.item.med_md = mid then
+	        		from
+	        			prescriptions.start
+	        		until
+	        			prescriptions.after
+	        		loop
+	        			if prescriptions.item.p_id = medicines.item.rx_id then
+	        				temp := temp + prescriptions.item.p_patient.out + "->" + patient_set.at(find_patient_by_id(prescriptions.item.p_patient).as_integer_32).name.out + "%N"
+	        				temp := temp + "  "
+	        			end
+
+						prescriptions.forth
+	        		end
+	        	end
+				medicines.forth
+        	end
+
+        	Result := temp
         end
         ----------------------------------------------------------------------------------QUERY HELPERS END
 
@@ -513,6 +565,26 @@ feature --util
 						Result := dangerous_interaction_exists
        end
 
+		-- returns true if dosage is within valid range, false otherwise
+		is_dosage_valid(this_rx: INTEGER_64; this_med: INTEGER_64; this_dose: VALUE) : BOOLEAN
+		local
+			temp : BOOLEAN
+			d_min : VALUE
+			d_max : VALUE
+		do
+
+			d_min := medication_set.at(find_medication_by_id(this_med).as_integer_32).medicine.low
+			d_max := medication_set.at(find_medication_by_id(this_med).as_integer_32).medicine.hi
+			temp := false
+
+			if (this_dose <= d_max AND this_dose >= d_min) then
+				temp := true
+			end
+
+			Result := false
+		end
+
+		-- returns index of medicie with prescription id: rx_id & medication id med_id
 		find_medicine_by_rxid(rx_id: INTEGER_64; med_id: INTEGER_64) : INTEGER_64
 		local
 			count : INTEGER_64
@@ -948,7 +1020,32 @@ feature --util
         -----------------------------------------------------------------------------MEDICATION HELPERS END
 
         ------------------------------------------------------------------------------------PATIENT HELPERS
-                --Is the structure sorted?
+        --returns index of patient with id : id
+		find_patient_by_id(id: INTEGER_64) : INTEGER_64
+		local
+			count : INTEGER_64
+			temp : BOOLEAN
+		do
+			from
+                        patient_set.start
+                        count := 1
+                        temp := false
+
+                until
+                        patient_set.after or temp
+                loop
+                        if (patient_set.item.id = id) then
+                        		Result := count
+                        		temp := true
+
+                        end
+                        patient_set.forth
+                        count := count + 1
+                end
+
+		end
+
+        --Is the structure sorted?
         patient_is_sorted: BOOLEAN
         local
                 temp_patient : PATIENT
@@ -1197,14 +1294,21 @@ feature -- queries
                 local
                         temp : STRING
                 do
-                		--NEED TO FIX OUT METHOD FOR WHEN QUERIES RUN???
-                        temp := "  " + i.out + ": " + report.out + "%N"
-                        temp := temp + "  Physicians: " + physician_to_string.out + "  "
-                        temp := temp + "Patients: " + patient_to_string.out + "  "
-                        temp := temp + "Medications: " + medication_to_string + "  "
-                        temp := temp + "Interactions: "  + interaction_to_string + " %N "
-                        temp := temp + " Prescriptions: " + prescriptions_to_string
+
+                        if query_active then
+                        	temp := report.out
+                        else
+							temp := "  " + i.out + ": " + report.out + "%N"
+	                        temp := temp + "  Physicians: " + physician_to_string.out + "  "
+	                        temp := temp + "Patients: " + patient_to_string.out + "  "
+	                        temp := temp + "Medications: " + medication_to_string + "  "
+	                        temp := temp + "Interactions: "  + interaction_to_string + " %N "
+	                        temp := temp + " Prescriptions: " + prescriptions_to_string
+                        end
+
+                       	query_active := false
                         create Result.make_from_string (temp)
+
                 end
 
 invariant

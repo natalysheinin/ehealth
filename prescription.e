@@ -1,6 +1,6 @@
 note
 	description: "Summary description for {PERSCRIPTION}."
-	author: "Nataly Sheinin"
+	author: "Michael Harrison and Nataly Sheinin"
 	date: "$Date$"
 	revision: "$Revision$"
 
