@@ -1,0 +1,36 @@
+-- at1.txt: Normal prescription followed by dangerous one
+add_physician	   (1, "Hippocrates", generalist)
+add_physician	   (3, "Mayo", specialist)
+add_physician	   (2, "Galen", specialist)
+add_patient        (3, "Dora")
+add_patient        (1, "Phineas")
+add_patient        (2, "Henry")
+-- physicians and patients are displayed in id order
+--add_medication   (id: ID; name: NAME; kind: MEDICATION_TYPE; low: VALUE; hi: VALUE)
+add_medication     (1, ["Wafarin", pill, 1.0, 6.0])
+add_medication     (12, ["alpha", pill, 1.0, 6.0])
+add_medication     (11, ["beta", pill, 1.0, 6.0])
+add_medication     (10, ["Wafariz", pill, 1.0, 6.0])
+add_medication     (2, ["Sulfamethizole", pill, 200.0, 500.0])
+add_medication     (4, ["m4", liquid, 2.5, 9.5])
+-- medication with name m4 is already in
+add_medication     (5, ["m4", liquid, 10.0, 25.5])
+add_medication     (5, ["m5", liquid, 7.0, 16.0])
+add_medication     (3, ["m3", liquid, 10.0, 25.5])
+add_medication     (6, ["test", pill, 20.0, 30.5])
+add_interaction    (2,1)
+--test how to sort
+add_interaction    (2,10)
+add_interaction    (2,12)
+add_interaction    (2,11)
+add_interaction    (2,11)
+-- the following will not add
+add_interaction    (1,2)
+add_interaction    (1,2)
+add_interaction    (5,3)
+--interactions are displayed alphabetically by name
+add_interaction    (4,2)
+--testing interaction on medication the does not exists
+--add_interaction    (50,2)
+--testing negative number
+--add_interaction    (3,-2)

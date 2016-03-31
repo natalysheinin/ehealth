@@ -1,0 +1,41 @@
+  0: ok
+  Physicians:
+  Patients: 
+  Medications:
+  Interactions:
+  Prescriptions:
+->add_patient(3,"Dora")
+  1: ok
+  Physicians:
+  Patients: 
+    3->Dora
+  Medications:
+  Interactions:
+  Prescriptions:
+->add_patient(1,"Dora")
+  2: ok
+  Physicians:
+  Patients: 
+    1->Dora
+    3->Dora
+  Medications:
+  Interactions:
+  Prescriptions:
+->add_patient(3,"Dora")
+  3: patient id already in use
+  Physicians:
+  Patients: 
+    1->Dora
+    3->Dora
+  Medications:
+  Interactions:
+  Prescriptions:
+->add_patient(3,"Mike")
+  4: patient id already in use
+  Physicians:
+  Patients: 
+    1->Dora
+    3->Dora
+  Medications:
+  Interactions:
+  Prescriptions:
