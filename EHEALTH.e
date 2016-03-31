@@ -36,6 +36,7 @@ feature {NONE} -- Initialization
 			create {SORTED_TWO_WAY_LIST [PRESCRIPTION]} prescriptions.make
 			create {TWO_WAY_LIST [INTERACTION]} interactions.make
 			create {SORTED_TWO_WAY_LIST [MEDICINE]} medicines.make
+
 			create {TWO_WAY_LIST [DANGEROUS]} dpr_set.make
 
 			query_active := false
@@ -375,7 +376,7 @@ feature --command
 				if (my_doctor_type = 4) then
 					create new_medicine.make (rx_id, medicine, dose)
 					medicines.extend (new_medicine)
-					set_report ("ok_safe")
+					set_report ("ok")
 
 						--IF GENERALIST: can't add
 				else
@@ -390,7 +391,7 @@ feature --command
 			else
 				create new_medicine.make (rx_id, medicine, dose)
 				medicines.extend (new_medicine)
-				set_report ("ok_safe")
+				set_report ("ok")
 			end
 		end
 
@@ -405,6 +406,7 @@ feature --command
 
 			medicines.go_i_th (find_medicine_by_rxid (rx_id, medicine).as_integer_32)
 			medicines.remove
+			set_report ("ok")
 		ensure
 			number_of_medicines_decreased: medicines.count = old medicines.count - 1
 		end
@@ -416,6 +418,10 @@ feature --queries
 		--(Dora,3)->{ [Sulfamethizole,pl,2]->[Wafarin,pl,1] }
 
 	dpr_q
+		local
+			list_of_meds: LIST [INTEGER_64]
+			count : INTEGER_32
+			new_dpr : DANGEROUS
 		do
 				--NEED TO DO THIS MICHAEL!!!! LOOK @ THIS
 				--might be a good idea to store dangerous prescriptions as they are being added via add_medicine as a desing deicison
@@ -423,7 +429,80 @@ feature --queries
 				-- also need to take into consideration remove_medicine may take away this problem.
 				-- suggestion to make a data structure containing : patient name, patient id, md1, md2
 			query_active := true
+
+
+			from
+				patient_set.start
+--				create {TWO_WAY_LIST [INTEGER_64]} list_of_meds.make
+			until
+				patient_set.after
+			loop
+					create {TWO_WAY_LIST [INTEGER_64]} list_of_meds.make
+					from
+						prescriptions.start
+					until
+						prescriptions.after
+					loop
+							if (prescriptions.item.p_patient = patient_set.item.id) then
+									from
+										medicines.start
+									until
+										medicines.after
+									loop
+										-- add to list!
+										if (medicines.item.rx_id = prescriptions.item.p_id) then
+											list_of_meds.extend (medicines.item.med_md)
+										end
+										medicines.forth
+									end
+							end
+						prescriptions.forth
+					end
+
+					--CHECK FOR DANGEROUS INTERACTION PER PATIENT
+					from
+						list_of_meds.start
+						count := 1
+					until
+						list_of_meds.after
+					loop
+
+						from
+							count := 1
+						until
+							list_of_meds.count = count + 1 -- one extra
+						loop
+
+							if (interaction_exists(list_of_meds.item, list_of_meds.at (count))) then
+								--add to dpr_set
+
+								--check if it exists in dpr_set already if does, don't add
+								if not(check_exists_dpr(patient_set.item.id, list_of_meds.item, list_of_meds.at(count))) then
+									create new_dpr.make (patient_set.item.name, patient_set.item.id, list_of_meds.item, list_of_meds.at(count))
+								dpr_set.extend (new_dpr)
+								end
+
+							end
+							count := count + 1
+						end
+
+						list_of_meds.forth
+					end
+				patient_set.forth
+			end
+
 			dpr_to_string
+
+			create {TWO_WAY_LIST [DANGEROUS]} dpr_set.make
+--			--need to clean dpr set
+--			from
+--				dpr_set.start
+--			until
+--				dpr_set.after
+--			loop
+--				dpr_set.remove
+--				dpr_set.forth
+--			end
 
 				--An interaction is always printed by name alphabetically, e.g. [mn3,lq,3]->[mn8,pl,8] and
 				-- not [mn8,pl,8] -> [mn3,lq,3]. However, in the dpr report, the dangerous interactions are
@@ -478,11 +557,33 @@ feature --util
 				Result := false
 			end
 		end
-			--------------------------------------------------------------------------------------QUERY HELPERS
+	------------------------------------------------------------------------------------------QUERY HELPERS
+	--returns true if it already exists in the dpr set
+	check_exists_dpr(pid: INTEGER_64; md1: INTEGER_64; md2: INTEGER_64) : BOOLEAN
+	local
+		temp : BOOLEAN
+	do
+		from
+				dpr_set.start
+				temp := false
+		until
+				dpr_set.after or temp
+				loop
+					if (dpr_set.item.patient_id = pid AND dpr_set.item.md1 = md1 AND dpr_set.item.md2 = md2) then
+						temp := true
+					elseif (dpr_set.item.patient_id = pid AND dpr_set.item.md1 = md2 AND dpr_set.item.md2 = md1) then
+						temp := true
+					end
+					dpr_set.forth
+				end
+		Result := temp
+	end
 
 	dpr_to_string
 	local
 		temp : STRING
+		medication_index_1 : INTEGER_64
+		medication_index_2 : INTEGER_64
 	do
 		temp := "  "
 
@@ -497,17 +598,37 @@ feature --util
 		until
 			dpr_set.after
 		loop
+
+			medication_index_1 := find_medication_by_id(dpr_set.item.md1)
+			medication_index_2 := find_medication_by_id(dpr_set.item.md2)
+
 			temp := temp + "%N"
-			temp := temp + dpr_set.item.out + "[" + medication_set.at(find_medication_by_id(dpr_set.item.md1).as_integer_32).out
-			temp := temp + "]->[" + medication_set.at(find_medication_by_id(dpr_set.item.md2).as_integer_32).out + "] }"
+			temp := temp + dpr_set.item.out + "[" + medication_set.at(medication_index_1.as_integer_32).medicine.name + ","
+			 if (medication_set.at(medication_index_1.as_integer_32).medicine.kind = 1) then
+                        temp := temp + "pl"
+             else
+                        temp := temp + "lq"
+             end
+			temp := temp + "," + medication_set.at(medication_index_1.as_integer_32).id.out
+			temp := temp + "]->[" + medication_set.at(medication_index_2.as_integer_32).medicine.name + ","
+			 if (medication_set.at(medication_index_2.as_integer_32).medicine.kind = 1) then
+                        temp := temp + "pl"
+             else
+                        temp := temp + "lq"
+             end
+			temp := temp + "," + medication_set.at(medication_index_2.as_integer_32).id.out  + "] }"
+
+			dpr_set.forth
 		end
+
+		set_report (temp)
 	end
 
 	p_q_to_string (mid: INTEGER_64)
 		local
 			temp: STRING
 		do
-			temp := "Output: medication is " + (medication_set.at (find_medication_by_id (mid).as_integer_32)).medicine.name.out + "%N"
+			temp := "  Output: medication is " + (medication_set.at (find_medication_by_id (mid).as_integer_32)).medicine.name.out
 			temp := temp + pq_helper (mid)
 			set_report (temp)
 		end
@@ -518,34 +639,58 @@ feature --util
 		do
 			temp := "  "
 			from
-				medicines.start
+				patient_set.start
 			until
-				medicines.after
+				patient_set.after
 			loop
-				if medicines.item.med_md = mid then
 					from
 						prescriptions.start
 					until
 						prescriptions.after
 					loop
-						if prescriptions.item.p_id = medicines.item.rx_id then
-							temp := temp + prescriptions.item.p_patient.out + "->" + patient_set.at (find_patient_by_id (prescriptions.item.p_patient).as_integer_32).name.out + "%N"
-							temp := temp + "  "
+						if prescriptions.item.p_patient = patient_set.item.id then
+								from
+									medicines.start
+								until
+									medicines.after
+								loop
+									if (medicines.item.rx_id = prescriptions.item.p_id AND medicines.item.med_md = mid)then
+										-- print medicine
+										temp := temp + "%N"
+										temp := temp + "  " + patient_set.item.id.out + "->" + patient_set.item.name + "  "
+									end
+									medicines.forth
+								end
 						end
 						prescriptions.forth
 					end
-				end
-				medicines.forth
+					patient_set.forth
 			end
 			Result := temp
 		end
-			----------------------------------------------------------------------------------QUERY HELPERS END
+		----------------------------------------------------------------------------------QUERY HELPERS END
 
 		-----------------------------------------------------------------------------------MEDICINE HELPERS
+		-- returns true if medicine exists for this specific prescription, false otherwise
+		medicine_exists_for_rx(rx_id: INTEGER_64; med_id: INTEGER_64) : BOOLEAN
+		local
+			temp : BOOLEAN
+		do
+
+			-- didn't find
+			if (find_medicine_by_rxid(rx_id, med_id) > 0) then
+				temp := true
+			else
+				temp := false
+			end
+			Result := temp
+
+		end
+
 		-- special helper function required for medicine creation
 		-- returns true if medication to be added will cause dangerous interaction with another prescripted medicine, otherwise false
 
-	check_interaction_dangerous (the_patient_id: INTEGER_64; the_medication_id: INTEGER_64): BOOLEAN
+		check_interaction_dangerous (the_patient_id: INTEGER_64; the_medication_id: INTEGER_64): BOOLEAN
 		local
 			dangerous_interaction_exists: BOOLEAN
 			new_danger: DANGEROUS
@@ -585,7 +730,7 @@ feature --util
 
 		-- returns true if dosage is within valid range, false otherwise
 
-	is_dosage_valid (this_rx: INTEGER_64; this_med: INTEGER_64; this_dose: VALUE): BOOLEAN
+		is_dosage_valid (this_rx: INTEGER_64; this_med: INTEGER_64; this_dose: VALUE): BOOLEAN
 		local
 			temp: BOOLEAN
 			d_min: VALUE
@@ -597,10 +742,10 @@ feature --util
 			if (this_dose <= d_max AND this_dose >= d_min) then
 				temp := true
 			end
-			Result := false
+			Result := temp
 		end
 
-		-- returns index of medicie with prescription id: rx_id & medication id med_id
+		-- returns index of medicine with prescription id: rx_id & medication id med_id
 
 	find_medicine_by_rxid (rx_id: INTEGER_64; med_id: INTEGER_64): INTEGER_64
 		local
@@ -609,17 +754,19 @@ feature --util
 		do
 			from
 				medicines.start
-				count := 1
+--				count := 1
+				count := 0
 				temp := false
 			until
 				medicines.after or temp
 			loop
+				count := count + 1
 				if (medicines.item.rx_id = rx_id and medicines.item.med_md = med_id) then
 					Result := count
 					temp := true
 				end
 				medicines.forth
-				count := count + 1
+
 			end
 		end
 			--check if medicine is part of a dangerous interaction
@@ -1363,14 +1510,14 @@ feature -- queries
 			temp: STRING
 		do
 			if query_active then
-				temp := report.out
+				temp := "  " + i.out + ": ok%N" + report.out
 			else
 				temp := "  " + i.out + ": " + report.out + "%N"
 				temp := temp + "  Physicians:" + physician_to_string.out + "  "
 				temp := temp + "Patients: " + patient_to_string.out + "  "
 				temp := temp + "Medications: " + medication_to_string + "  "
 				temp := temp + "Interactions:" + interaction_to_string + "%N  "
-				temp := temp + "Prescriptions:" + prescriptions_to_string + "%N"
+				temp := temp + "Prescriptions:" + prescriptions_to_string
 			end
 			query_active := false
 			create Result.make_from_string (temp)

@@ -34,7 +34,7 @@ feature --redefine COMPARABLE methods
         is_equal (other: like Current): BOOLEAN
                         -- Is `other' value equal to current
               do
-                if (other.id1 = id1) then
+                if (other.id1 = id1 AND other.id2 = id2) then
                 	Result := true
 
                 end

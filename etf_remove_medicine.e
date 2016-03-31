@@ -17,7 +17,17 @@ feature -- command
 			remove_medicine_precond(id, medicine)
     	do
 			-- perform some update on the model state
-			--model.remove_medicine(id, medicine)
+			if not(model.is_id_overflow (id)) then
+				model.set_report (model.perscription_nonpositive)
+			elseif not(model.prescription_exists (id)) then
+				model.set_report (model.prescription_id_dne)
+			elseif not(model.medicine_exists_for_rx(id, medicine)) then
+				model.set_report (model.medication_not_registered)
+			elseif not (model.is_id_overflow (medicine)) then
+				model.set_report (model.md_id_nonpositive)
+			else
+				model.remove_medicine(id, medicine)
+			end
 			model.default_update
 			etf_cmd_container.on_change.notify ([Current])
     	end
