@@ -23,12 +23,12 @@ feature -- command
 				model.set_report(model.invalid_interaction_id)
 			elseif id1 = id2 then
 				model.set_report(model.interaction_different)
+			elseif model.md_exists_2 (id1) = false or model.md_exists_2 (id2) = false then
+				model.set_report(model.interaction_not_registered)
 			elseif model.interaction_exists(id1, id2) then
 				model.set_report (model.interaction_not_unique)
-			elseif model.md_exists_2 (id1) = false then
-				model.set_report(model.interaction_not_registered)
-			elseif model.md_exists_2(id2) = false then
-				model.set_report(model.interaction_not_registered)
+			elseif id1 = -1 then
+				model.set_report(model.interaction_first_remove)
 
 			else
 				model.add_interaction (id1, id2)

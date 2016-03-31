@@ -17,7 +17,7 @@ feature -- command
 			remove_medicine_precond(id, medicine)
     	do
 			-- perform some update on the model state
-			model.remove_medicine(id, medicine)
+			--model.remove_medicine(id, medicine)
 			model.default_update
 			etf_cmd_container.on_change.notify ([Current])
     	end

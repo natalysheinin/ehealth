@@ -21,10 +21,12 @@ feature -- command
                                 model.set_report (model.md_id_nonpositive)
                         elseif (not model.md_is_id_unique (id)) then
                                 model.set_report (model.md_id_nonunique)
-                        elseif (not model.mn_name_unique (medicine.name)) then
-                                model.set_report (model.md_name_nonunique)
                         elseif (not model.name_valid (medicine.name)) then
                                 model.set_report (model.md_name_invalid)
+                        elseif (not model.mn_name_unique (medicine.name)) then
+                                model.set_report (model.md_name_nonunique)
+                        elseif (not model.low_le_high(medicine.low, medicine.hi)) then
+                        		model.set_report(model.low_nle_high)
                         else
                                 model.add_medication (id, medicine)
                         end

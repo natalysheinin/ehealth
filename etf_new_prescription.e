@@ -17,24 +17,20 @@ feature -- command
 			new_prescription_precond(id, doctor, patient)
     	do
 			-- perform some update on the model state
-			if  model.prescription_exists(id) then
-				model.set_report(model.prescription_not_unique)
-
-			elseif not(model.is_id_overflow (id)) then
+			if not(model.is_id_overflow (id)) then
 				model.set_report (model.perscription_nonpositive)
-
+			elseif  model.prescription_exists(id) then
+				model.set_report(model.prescription_not_unique)
 			elseif not(model.is_id_overflow (doctor)) then
 				model.set_report (model.phys_id_nonpositive)
-
+			elseif not(model.phys_exists(doctor))then
+						model.set_report (model.physician_not_valid)
 			elseif not(model.is_id_overflow (patient)) then
 				model.set_report (model.pt_id_nonpositive)
-
-			elseif not(model.phys_exists(doctor))then
-				model.set_report (model.physician_not_valid)
-
 			elseif not(model.pt_id_exists(patient)) then
 				model.set_report (model.patient_not_valid)
-
+			elseif (model.prescription_exists_for_phy_pt(doctor, patient)) then
+				model.set_report(model.prescription_exists_for_pair)
 			else
 				model.new_prescription (id, doctor, patient)
 			end
