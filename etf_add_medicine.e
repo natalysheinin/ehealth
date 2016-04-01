@@ -26,10 +26,8 @@ feature -- command
 				model.set_report (model.md_id_nonpositive)
 			elseif not model.md_exists_2(medicine) then
 				model.set_report(model.medication_not_registered)
---			elseif not model.check_md_already_pres(id) then --todo what
---				model.set_report(model.md_already_pres)
---			elseif model.is_danger_no_sp(id, medicine) then --todo method
---				model.set_report(model.specialist_required)
+			elseif model.medicine_exists_for_rx(id, medicine) then
+				model.set_report(model.md_already_pres)
 			elseif not(model.is_dosage_valid(id, medicine, dose)) then
 				model.set_report(model.invalid_dosage)
 			else

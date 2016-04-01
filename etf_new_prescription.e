@@ -24,7 +24,7 @@ feature -- command
 			elseif not(model.is_id_overflow (doctor)) then
 				model.set_report (model.phys_id_nonpositive)
 			elseif not(model.phys_exists(doctor))then
-						model.set_report (model.physician_not_valid)
+				model.set_report (model.physician_not_valid)
 			elseif not(model.is_id_overflow (patient)) then
 				model.set_report (model.pt_id_nonpositive)
 			elseif not(model.pt_id_exists(patient)) then

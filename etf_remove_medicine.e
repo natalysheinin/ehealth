@@ -21,10 +21,12 @@ feature -- command
 				model.set_report (model.perscription_nonpositive)
 			elseif not(model.prescription_exists (id)) then
 				model.set_report (model.prescription_id_dne)
-			elseif not(model.medicine_exists_for_rx(id, medicine)) then
-				model.set_report (model.medication_not_registered)
-			elseif not (model.is_id_overflow (medicine)) then
+			elseif not(model.is_id_overflow (medicine)) then
 				model.set_report (model.md_id_nonpositive)
+			elseif not (model.md_exists_2 (medicine)) then
+				model.set_report (model.medication_not_registered)
+			elseif not(model.medicine_exists_for_rx(id, medicine)) then
+				model.set_report (model.medication_not_in_rx)
 			else
 				model.remove_medicine(id, medicine)
 			end

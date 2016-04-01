@@ -105,7 +105,7 @@ feature {ETF_COMMAND} -- reports
 
 	pt_name_invalid: STRING
 		attribute
-			Result := "patient name must start with a letter"
+			Result := "name must start with a letter"
 		end
 
 	md_name_invalid: STRING
@@ -197,11 +197,9 @@ feature {ETF_COMMAND} -- reports
 		attribute
 			Result := "prescription with this id does not exist"
 		end
-
-
 	patient_not_valid: STRING
 		attribute
-			Result := "physician with this id not registered"
+			Result := "patient with this id not registered"
 		end
 
 	prescription_exists_for_pair: STRING
@@ -222,6 +220,11 @@ feature {ETF_COMMAND} -- reports
 	invalid_dosage: STRING
 		attribute
 			Result := "dose is outside allowed range"
+		end
+
+	medication_not_in_rx: STRING
+		attribute
+			Result := "medication is not in the prescription"
 		end
 
 feature -- set report
@@ -293,7 +296,7 @@ feature --command
 		require
 			medicine_1_exists: md_exists_2 (a_id)
 			medicine_2_exists: md_exists_2 (b_id)
-			check_interaction_exists: not interaction_exists (a_id, b_id)
+			check_interaction_exists: not interaction_exists(a_id, b_id)
 			different_intereactions: not (a_id = b_id)
 			is_valid: is_id_overflow (a_id)
 			is_valid_2: is_id_overflow (b_id)
@@ -398,6 +401,7 @@ feature --command
 	remove_medicine (rx_id: INTEGER_64; medicine: INTEGER_64)
 		require
 			rx_valid: is_id_overflow (rx_id)
+			prescription_id_exists: prescription_exists (rx_id)
 			medicine_valid: is_id_overflow (medicine)
 			rx_exists: prescription_exists (rx_id)
 			medicine_exists: md_exists_2 (medicine)
@@ -413,23 +417,16 @@ feature --command
 
 feature --queries
 
-		-- dangerous prescription report
-		-- e.g. There are dangerous prescriptions:
-		--(Dora,3)->{ [Sulfamethizole,pl,2]->[Wafarin,pl,1] }
-
+	-- dangerous prescription report
+	-- e.g. There are dangerous prescriptions:
+	--(Dora,3)->{ [Sulfamethizole,pl,2]->[Wafarin,pl,1] }
 	dpr_q
 		local
 			list_of_meds: LIST [INTEGER_64]
 			count : INTEGER_32
 			new_dpr : DANGEROUS
 		do
-				--NEED TO DO THIS MICHAEL!!!! LOOK @ THIS
-				--might be a good idea to store dangerous prescriptions as they are being added via add_medicine as a desing deicison
-				-- -> this makes printing this report significantly easier
-				-- also need to take into consideration remove_medicine may take away this problem.
-				-- suggestion to make a data structure containing : patient name, patient id, md1, md2
 			query_active := true
-
 
 			from
 				patient_set.start
@@ -459,50 +456,39 @@ feature --queries
 						prescriptions.forth
 					end
 
-					--CHECK FOR DANGEROUS INTERACTION PER PATIENT
-					from
-						list_of_meds.start
-						count := 1
-					until
-						list_of_meds.after
-					loop
+						--CHECK FOR DANGEROUS INTERACTION PER PATIENT
+										from
+											list_of_meds.start
+											count := 1
+										until
+											list_of_meds.after
+										loop
+											from
+												count := 1
+											until
+												list_of_meds.count = (count + 1) -- one extra
+											loop
+												if (interaction_exists(list_of_meds.item, list_of_meds.at (count))) then
+													--add to dpr_set
+													--check if it exists in dpr_set already if does, don't add
+													if not(check_exists_dpr(patient_set.item.id, list_of_meds.item, list_of_meds.at(count))) then
+														create new_dpr.make (patient_set.item.name, patient_set.item.id, list_of_meds.item, list_of_meds.at(count))
+														dpr_set.extend (new_dpr)
+													end
 
-						from
-							count := 1
-						until
-							list_of_meds.count = count + 1 -- one extra
-						loop
+												end
+												count := count + 1
+											end
 
-							if (interaction_exists(list_of_meds.item, list_of_meds.at (count))) then
-								--add to dpr_set
+											list_of_meds.forth
+										end
 
-								--check if it exists in dpr_set already if does, don't add
-								if not(check_exists_dpr(patient_set.item.id, list_of_meds.item, list_of_meds.at(count))) then
-									create new_dpr.make (patient_set.item.name, patient_set.item.id, list_of_meds.item, list_of_meds.at(count))
-								dpr_set.extend (new_dpr)
-								end
-
-							end
-							count := count + 1
-						end
-
-						list_of_meds.forth
-					end
 				patient_set.forth
 			end
 
 			dpr_to_string
 
 			create {TWO_WAY_LIST [DANGEROUS]} dpr_set.make
---			--need to clean dpr set
---			from
---				dpr_set.start
---			until
---				dpr_set.after
---			loop
---				dpr_set.remove
---				dpr_set.forth
---			end
 
 				--An interaction is always printed by name alphabetically, e.g. [mn3,lq,3]->[mn8,pl,8] and
 				-- not [mn8,pl,8] -> [mn3,lq,3]. However, in the dpr report, the dangerous interactions are
@@ -637,7 +623,7 @@ feature --util
 		local
 			temp: STRING
 		do
-			temp := "  "
+			temp := ""
 			from
 				patient_set.start
 			until
@@ -657,7 +643,7 @@ feature --util
 									if (medicines.item.rx_id = prescriptions.item.p_id AND medicines.item.med_md = mid)then
 										-- print medicine
 										temp := temp + "%N"
-										temp := temp + "  " + patient_set.item.id.out + "->" + patient_set.item.name + "  "
+										temp := temp + "    " + patient_set.item.id.out + "->" + patient_set.item.name
 									end
 									medicines.forth
 								end
@@ -674,17 +660,24 @@ feature --util
 		-- returns true if medicine exists for this specific prescription, false otherwise
 		medicine_exists_for_rx(rx_id: INTEGER_64; med_id: INTEGER_64) : BOOLEAN
 		local
-			temp : BOOLEAN
+			count: INTEGER_64
+			temp: BOOLEAN
 		do
-
-			-- didn't find
-			if (find_medicine_by_rxid(rx_id, med_id) > 0) then
-				temp := true
-			else
+			from
+				medicines.start
+				count := 1
 				temp := false
+			until
+				medicines.after or temp
+			loop
+				if (medicines.item.rx_id = rx_id AND medicines.item.med_md = med_id) then
+					temp := true
+				end
+				medicines.forth
+				count := count + 1
 			end
-			Result := temp
 
+			Result := temp
 		end
 
 		-- special helper function required for medicine creation
@@ -874,25 +867,27 @@ feature --util
 			end
 		end
 
-			-- ensure no precription already exists for this physician and patient
-
+	-- ensure no precription already exists for this physician and patient
+	-- returns true is prescription exists, false otherwise.
 	prescription_exists_for_phy_pt (a_doctor : INTEGER_64; a_patient : INTEGER_64): BOOLEAN
+	local
+		temp : BOOLEAN
 	do
+		temp := false
 		from
 			prescriptions.start
 		until
-			prescriptions.after or Result
+			prescriptions.after or temp
 		loop
-			if prescriptions.item.p_doctor = a_doctor
-				and prescriptions.item.p_patient = a_patient then
-					Result := true
+			if prescriptions.item.p_doctor = a_doctor AND prescriptions.item.p_patient = a_patient then
+					temp := true
 			end
 			prescriptions.forth
 		end
+		Result := temp
 	end
 
-		--if prescription exists, returns true, otherwise returns false.
-
+	--if prescription exists, returns true, otherwise returns false.
 	prescription_exists (id: INTEGER_64): BOOLEAN
 		do
 			from
@@ -932,9 +927,75 @@ feature --util
 			----------------------------------------------------------------------------PRESCRIPTION HELPERS END
 
 		--------------------------------------------------------------------------------INTERACTION HELPERS
-		-- returns true if interaction exists
+		-- returns true if interaction conflicts with medications prescribed by at least one generalist
+		-- otherwise returns false
+		interaction_conflicts(md1: INTEGER_64; md2: INTEGER_64) : BOOLEAN
+		local
+			list_of_meds : LIST[INTEGER_64]
+			temp : BOOLEAN
+			count : INTEGER_32
+		do
+			from
+				patient_set.start
+				temp := false
+			until
+				patient_set.after or temp
+			loop
+					create {TWO_WAY_LIST [INTEGER_64]} list_of_meds.make
+					from
+						prescriptions.start
+					until
+						prescriptions.after or temp
+					loop
+							if (prescriptions.item.p_patient = patient_set.item.id AND ((physician_set.at(find_physician_by_id (prescriptions.item.p_doctor).as_integer_32).type)) = 3) then
+									from
+										medicines.start
+									until
+										medicines.after
+									loop
+										-- add to list!
+										if (medicines.item.rx_id = prescriptions.item.p_id) then
+											list_of_meds.extend (medicines.item.med_md)
+										end
+										medicines.forth
+									end
+							end
+						prescriptions.forth
+					end
 
-	interaction_exists (id1: INTEGER_64; id2: INTEGER_64): BOOLEAN
+					--CHECK FOR CONFLICTING INTERACTION
+					if list_of_meds.count > 1 then
+						from
+											list_of_meds.start
+											count := 1
+										until
+											list_of_meds.after or temp
+										loop
+											from
+												count := 1
+											until
+												list_of_meds.count = count + 1  or temp-- one extra
+											loop
+
+												if (list_of_meds.item = md1 AND list_of_meds.at(count) = md2) then
+													--interaction conflicts
+													temp := true
+												elseif (list_of_meds.item = md2 AND list_of_meds.at(count) = md1)  then
+													temp := true
+												end
+												count := count + 1
+											end
+											list_of_meds.forth
+										end
+					end
+				patient_set.forth
+			end
+
+			Result := temp
+		end
+
+		-- returns true if interaction exists
+		interaction_exists (id1: INTEGER_64; id2: INTEGER_64): BOOLEAN
 		do
 			from
 				interactions.start
@@ -955,7 +1016,7 @@ feature --util
 
 		-- print out all interactions in the interactions database
 
-	interaction_to_string: STRING
+		interaction_to_string: STRING
 		local
 			temp: STRING
 		do
@@ -1247,9 +1308,8 @@ feature --util
 		Result := false
 	end
 
-		-- check if patient with this id and name exists in the database
-		-- returns true if patient exists, false otherwise
-
+	-- check if patient with this id and name exists in the database
+	-- returns true if patient exists, false otherwise
 	pt_exists (id: INTEGER_64; name: STRING): BOOLEAN
 		do
 			from
@@ -1265,15 +1325,9 @@ feature --util
 			end
 		end
 
-		--check if medication is already prescribed, true if already prescribed
-	check_md_already_pres(a_id :INTEGER_64) : BOOLEAN
-	do
-		Result := false
-	end
 
-		-- check if patient with this id and name exists in the database using just id
-		-- returns true if patient exists, false otherwise
-
+	-- check if patient with this id and name exists in the database using just id
+	-- returns true if patient exists, false otherwise
 	pt_id_exists (id: INTEGER_64): BOOLEAN
 		do
 			from
@@ -1306,7 +1360,7 @@ feature --util
 			end
 		end
 
-		-- are interactions toher than `id1' and `id2' unchanged?
+		-- are interactions other than `id1' and `id2' unchanged?
 	interactions_unchanged_other_than(a_id1: INTEGER_64; a_id2: INTEGER_64; old_interactions: like interactions): BOOLEAN
 	do
 		old_interactions.compare_objects
@@ -1330,9 +1384,17 @@ feature --util
 	end
 
 		-- ensure low value less than or equal to high
+		-- returns true if 0 < low-dose <= hi-dose
 	low_le_high(a_low : VALUE; a_high : VALUE): BOOLEAN
+	local
+		temp: VALUE
 	do
-		Result := a_low <= a_high
+		if temp.zero < a_low AND a_low <= a_high then
+			Result := true
+		else
+			Result := false
+
+		end
 	end
 
 		-- are patients other than `id' unchanged?
@@ -1464,8 +1526,7 @@ feature --util
 			end
 		end
 
-		-- returns true if physician exists, and false otherwise
-
+	-- returns true if physician exists, and false otherwise
 	phys_exists (id: INTEGER_64): BOOLEAN
 		do
 			from

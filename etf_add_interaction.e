@@ -27,9 +27,8 @@ feature -- command
 				model.set_report(model.interaction_not_registered)
 			elseif model.interaction_exists(id1, id2) then
 				model.set_report (model.interaction_not_unique)
-			elseif id1 = -1 then
+			elseif (model.interaction_conflicts (id1, id2)) then
 				model.set_report(model.interaction_first_remove)
-
 			else
 				model.add_interaction (id1, id2)
 			end

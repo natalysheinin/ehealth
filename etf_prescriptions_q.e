@@ -19,10 +19,8 @@ feature -- command
 			-- perform some update on the model state
 			if not(model.is_id_overflow(medication_id)) then
 				model.set_report(model.md_id_nonpositive)
---				model.default_update
 			elseif not(model.md_exists_2(medication_id)) then
 				model.set_report(model.medication_not_registered)
---				model.default_update
 			else
 				model.prescriptions_q(medication_id)
 			end
